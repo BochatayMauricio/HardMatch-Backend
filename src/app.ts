@@ -1,12 +1,15 @@
-// src/app.ts
 import express from "express";
-import type { Application, Request, Response, NextFunction } from "express";
+import type { Application, Request, Response } from "express";
 import cors from "cors";
 import config from "./config/config.js";
+import {
+  errorHandler,
+  notFoundHandler,
+} from "./api/middlewares/errorHandler.middleware.js";
 
 // Importar rutas
 // import scrapingRoutes from "./api/routes/scraping.routes.js";
-// import authRoutes from "./api/routes/auth.router.js";
+import authRoutes from "./api/routes/auth.router.js";
 // import userRoutes from "./api/routes/user.router.js";
 // import productRoutes from "./api/routes/product.router.js";
 // import adminRoutes from "./api/routes/admin.router.js";
@@ -41,7 +44,7 @@ app.get("/check", (_req: Request, res: Response) => {
 
 // API Routes
 // app.use("/api/scraping", scrapingRoutes);
-// app.use("/api/auth", authRoutes);
+app.use("/api/auth", authRoutes);
 // app.use("/api/users", userRoutes);
 // app.use("/api/products", productRoutes);
 // app.use("/api/admin", adminRoutes);
@@ -50,22 +53,9 @@ app.get("/check", (_req: Request, res: Response) => {
 // ==================== MANEJO DE ERRORES ====================
 
 // 404 - Ruta no encontrada
-app.use((_req: Request, res: Response) => {
-  res.status(404).json({
-    success: false,
-    message: "Endpoint not found",
-  });
-});
+app.use(notFoundHandler);
 
-// Error handler global
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  console.error("❌ Error:", err.message);
-
-  res.status(500).json({
-    success: false,
-    message:
-      config.env === "development" ? err.message : "Internal server error",
-  });
-});
+// Error handler global estandarizado
+app.use(errorHandler);
 
 export default app;

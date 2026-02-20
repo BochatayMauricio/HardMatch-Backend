@@ -16,16 +16,16 @@ export interface UserAttributes {
 }
 
 export class User extends Model<UserAttributes> implements UserAttributes {
-  public id!: number;
-  public name!: string;
-  public surname!: string;
-  public email!: string;
-  public username!: string;
-  public password!: string;
-  public role!: "ADMIN" | "CLIENT";
-  public isActive!: boolean;
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare id: number;
+  declare name: string;
+  declare surname: string;
+  declare email: string;
+  declare username: string;
+  declare password: string;
+  declare role: "ADMIN" | "CLIENT";
+  declare isActive: boolean;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 }
 
 User.init(
