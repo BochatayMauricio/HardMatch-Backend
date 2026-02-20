@@ -82,6 +82,36 @@ npm run start
 
 ---
 
+## Autenticación
+
+El sistema implementa autenticación JWT con roles (`ADMIN` y `CLIENT`).
+
+### Credenciales de Prueba
+
+| Rol    | Email                 | Username | Password     |
+| ------ | --------------------- | -------- | ------------ |
+| ADMIN  | admin@hardmatch.com   | admin    | `admin123`   |
+| CLIENT | cliente@hardmatch.com | cliente  | `cliente123` |
+
+> **⚠️ Estas credenciales son solo para desarrollo/testing**
+
+### Endpoints de Auth
+
+| Método | Endpoint                    | Descripción                | Acceso  |
+| ------ | --------------------------- | -------------------------- | ------- |
+| POST   | `/api/auth/register`        | Registrar nuevo usuario    | Público |
+| POST   | `/api/auth/login`           | Iniciar sesión             | Público |
+| GET    | `/api/auth/me`              | Obtener perfil del usuario | Auth    |
+| POST   | `/api/auth/change-password` | Cambiar contraseña         | Auth    |
+
+### Ejemplo de Login
+
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@hardmatch.com", "password": "admin123"}'
+```
+
 ## Migraciones
 
 Se llevará un registro de todas las migraciones o cambios realizados en la base de datos durante el desarrollo.
@@ -169,4 +199,5 @@ Esto mostrará algo como:
 - **ORM:** Sequelize
 - **Base de Datos:** MySQL
 - **Validación:** Zod
+- **Autenticación:** JWT (jsonwebtoken) + bcrypt
 - **HTTP Client:** Axios (para consumir microservicios)
