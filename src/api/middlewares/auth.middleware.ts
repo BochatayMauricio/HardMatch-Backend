@@ -1,12 +1,16 @@
 import type { Request, Response, NextFunction } from "express";
 import { authService } from "../../core/services/auth.service.js";
 import type { JwtPayload } from "../../core/interfaces/auth.interfaces.js";
+import type { UserAttributes } from "../../core/models/User.js";
+import { User } from "../../core/models/User.js";
+import { verifyToken } from "../../core/tools/VerifyJwt.js";
 
 // Extender el tipo Request para incluir el usuario
 declare global {
   namespace Express {
     interface Request {
       user?: JwtPayload;
+      token?: string;
     }
   }
 }
@@ -15,11 +19,11 @@ declare global {
  * Middleware que verifica el token JWT y añade el usuario al request
  * El token debe enviarse en el header: Authorization: Bearer <token>
  */
-export const authenticate = (
+export const authenticate = async (
   req: Request,
   res: Response,
   next: NextFunction,
-): void => {
+): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
 
@@ -52,10 +56,11 @@ export const authenticate = (
     }
 
     // Verificar y decodificar el token
-    const decoded = authService.verifyToken(token);
+    const decoded = verifyToken(token);
 
-    // Añadir usuario al request
+    // Añadir payload del token al request
     req.user = decoded;
+    req.token = token;
 
     next();
   } catch (error) {

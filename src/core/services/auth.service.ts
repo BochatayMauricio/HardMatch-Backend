@@ -13,43 +13,21 @@ import { dtoSchemas } from "../../utils/validators.js";
 import type {
   JwtPayload,
   AuthResponse,
+  RegisterDTO,
+  LoginDTO,
+  ChangePasswordDTO,
 } from "../interfaces/auth.interfaces.js";
+import { validateInputs } from "../tools/validateInputs.js";
 
 const SALT_ROUNDS = 10;
 
 class AuthService {
   /**
-   * Valida datos con Zod y lanza ValidationError si falla
-   */
-  private validate<T>(
-    schema: z.ZodSchema<T>,
-    data: unknown,
-    action: string,
-  ): T {
-    const result = schema.safeParse(data);
-
-    if (!result.success) {
-      const errors = result.error.errors.map((e) => ({
-        field: e.path.join("."),
-        message: e.message,
-      }));
-
-      throw new ValidationError("Error de validación", errors, {
-        resource: "auth",
-        action,
-        details: { fields: errors.map((e) => e.field) },
-      });
-    }
-
-    return result.data;
-  }
-
-  /**
    * Registra un nuevo usuario con contraseña hasheada
    */
-  async register(data: unknown): Promise<AuthResponse> {
+  async register(data: RegisterDTO): Promise<AuthResponse> {
     // Validar datos de entrada
-    const validatedData = this.validate(
+    const validatedData = validateInputs(
       dtoSchemas.auth.register,
       data,
       "register",
@@ -79,6 +57,17 @@ class AuthService {
       });
     }
 
+    const phoneExists = await User.findOne({
+      where: { phone: validatedData.phone },
+    });
+    if (phoneExists) {
+      throw new ConflictError("El teléfono ya está en uso", {
+        resource: "user",
+        action: "register",
+        details: { field: "phone", value: validatedData.phone },
+      });
+    }
+
     // Hashear la contraseña
     const hashedPassword = await bcrypt.hash(
       validatedData.password,
@@ -93,6 +82,7 @@ class AuthService {
       username: validatedData.username,
       password: hashedPassword,
       role: validatedData.role || "CLIENT",
+      phone: validatedData.phone,
     });
 
     // Generar token JWT
@@ -110,9 +100,9 @@ class AuthService {
   /**
    * Inicia sesión verificando credenciales
    */
-  async login(data: unknown): Promise<AuthResponse> {
+  async login(data: LoginDTO): Promise<AuthResponse> {
     // Validar datos de entrada
-    const validatedData = this.validate(dtoSchemas.auth.login, data, "login");
+    const validatedData = validateInputs(dtoSchemas.auth.login, data, "login");
 
     // Buscar usuario por email
     const user = await User.findOne({ where: { email: validatedData.email } });
@@ -179,44 +169,11 @@ class AuthService {
   }
 
   /**
-   * Verifica y decodifica un token JWT
-   */
-  verifyToken(token: string): JwtPayload {
-    try {
-      return jwt.verify(token, config.jwt.secret) as JwtPayload;
-    } catch {
-      throw new UnauthorizedError("Token inválido o expirado", {
-        resource: "auth",
-        action: "verifyToken",
-      });
-    }
-  }
-
-  /**
-   * Obtiene un usuario por su ID (sin password)
-   */
-  async getUserById(id: number): Promise<AuthResponse["user"]> {
-    const user = await User.findByPk(id, {
-      attributes: { exclude: ["password"] },
-    });
-
-    if (!user) {
-      throw new NotFoundError("Usuario no encontrado", {
-        resource: "user",
-        resourceId: id,
-        action: "getProfile",
-      });
-    }
-
-    return user.toJSON();
-  }
-
-  /**
    * Cambia la contraseña de un usuario
    */
-  async changePassword(userId: number, data: unknown): Promise<void> {
+  async changePassword(userId: number, data: ChangePasswordDTO): Promise<void> {
     // Validar datos de entrada
-    const validatedData = this.validate(
+    const validatedData = validateInputs(
       dtoSchemas.auth.changePassword,
       data,
       "changePassword",

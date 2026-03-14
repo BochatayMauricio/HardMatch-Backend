@@ -9,6 +9,7 @@ export interface RegisterDTO {
   email: string;
   username: string;
   password: string;
+  phone: string;
   role?: "ADMIN" | "CLIENT";
 }
 

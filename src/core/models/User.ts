@@ -10,6 +10,7 @@ export interface UserAttributes {
   username: string;
   password: string;
   role: "ADMIN" | "CLIENT";
+  phone: string;
   isActive?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -24,6 +25,7 @@ export class User extends Model<UserAttributes> implements UserAttributes {
   declare password: string;
   declare role: "ADMIN" | "CLIENT";
   declare isActive: boolean;
+  declare phone: string;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 }
@@ -64,6 +66,10 @@ User.init(
     isActive: {
       type: DataTypes.BOOLEAN,
       defaultValue: true,
+    },
+    phone: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
     },
   },
   {

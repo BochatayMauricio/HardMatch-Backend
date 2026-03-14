@@ -40,6 +40,12 @@ export const fields = {
 
   page: z.number().int().min(1).default(1),
   limit: z.number().int().min(1).max(100).default(10),
+
+  phone: z
+    .string()
+    .min(7, "El número de teléfono debe tener al menos 7 dígitos")
+    .max(20, "El número de teléfono no puede exceder 20 dígitos")
+    .regex(/^\+?[0-9\s\-()]+$/, "Número de teléfono inválido"),
 };
 
 // ==================== SCHEMAS DE DTOs (Request Inputs) ====================
@@ -56,6 +62,7 @@ export const dtoSchemas = {
       email: fields.email,
       username: fields.username,
       password: fields.password,
+      phone: fields.phone,
       role: fields.role.optional(),
     }),
 
@@ -67,6 +74,14 @@ export const dtoSchemas = {
     changePassword: z.object({
       currentPassword: fields.passwordRequired,
       newPassword: fields.password,
+    }),
+  },
+  users: {
+    modifyProfile: z.object({
+      name: fields.name,
+      surname: fields.surname,
+      email: fields.email,
+      phone: fields.phone,
     }),
   },
 };

@@ -35,32 +35,6 @@ class AuthController {
     }
   }
 
-  async getProfile(
-    req: Request,
-    res: Response,
-    next: NextFunction,
-  ): Promise<void> {
-    try {
-      const userId = req.user?.userId;
-
-      if (!userId) {
-        throw new UnauthorizedError("No autenticado", {
-          resource: "auth",
-          action: "getProfile",
-        });
-      }
-
-      const user = await authService.getUserById(userId);
-
-      res.status(200).json({
-        success: true,
-        data: user,
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-
   async changePassword(
     req: Request,
     res: Response,
