@@ -1,4 +1,5 @@
 import express from "express";
+import './core/models/index.js';
 import type { Application, Request, Response } from "express";
 import cors from "cors";
 import config from "./config/config.js";

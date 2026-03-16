@@ -1,6 +1,7 @@
-import { Product, ProductAttributes } from '../models/Product.js';
+import { ProductAttributes } from '../models/Product.js';
 import { Op } from 'sequelize';
 import { ProductFilters } from '../interfaces/product.interfaces.js'; // <-- Importamos la interfaz
+import { Product, Brand, Category, Feature, Listing } from '../models/index.js';
 
 
 // Omitimos el 'id' porque la base de datos lo autogenera
@@ -39,7 +40,36 @@ export const listProducts = async (filters: ProductFilters = {}) => {
 // 1. Obtener por ID
 export const getProductById = async (id: number) => {
     const product = await Product.findOne({
-        where: { id, isActive: true }
+        where: { id, isActive: true },
+        include: [
+            // Traemos la Marca asociada
+            { 
+                model: Brand, 
+                as: 'brand', 
+                attributes: ['name'] // Solo queremos el nombre, no toda la metadata
+            },
+            // Traemos la Categoría asociada
+            { 
+                model: Category, 
+                as: 'category', 
+                attributes: ['name'] 
+            },
+            // Traemos las Características Técnicas
+            { 
+                model: Feature, 
+                as: 'features', 
+                attributes: ['keyword', 'value'], 
+                through: { attributes: [] } // Esto oculta la tabla intermedia (product_features) del JSON final
+            },
+            // Traemos las Ofertas Activas del Scraper
+            { 
+                model: Listing, 
+                as: 'listings', 
+                attributes: ['priceTotal', 'urlAccess', 'percentOff'],
+                where: { isActive: true },
+                required: false // LEFT JOIN: trae el producto aunque todavía no tenga ofertas
+            }
+        ]
     });
     return product;
 };
