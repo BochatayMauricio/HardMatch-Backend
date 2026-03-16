@@ -115,6 +115,17 @@ export const createListingSchema = z.object({
   urlAccess: z.string().url("Debe ser una URL válida").optional(),
   expirationAt: z.string().datetime().optional() // Fecha en formato ISO 8601
 });
+
+// ==================== SCHEMAS DE CARACTERÍSTICAS ====================
+export const createFeatureSchema = z.object({
+  keyword: z.string().min(2, "La clave debe tener al menos 2 caracteres").max(100),
+  value: z.string().min(1, "El valor es obligatorio").max(255)
+});
+
+// Validar la asociación (tabla pivote)
+export const assignFeatureSchema = z.object({
+  idFeature: z.number().int().positive("El ID de la característica es inválido")
+});
 // ==================== TIPOS INFERIDOS ====================
 
 export type RegisterInput = z.infer<typeof dtoSchemas.auth.register>;
