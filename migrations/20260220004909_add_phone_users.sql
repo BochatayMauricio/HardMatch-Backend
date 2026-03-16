@@ -10,7 +10,7 @@
 -- ==================== TUS CAMBIOS AQUÍ ====================
 
 -- Ejemplo: Agregar columna
-ALTER TABLE `Users` ADD COLUMN `phone` VARCHAR(255) NULL;
+-- ALTER TABLE `users` ADD COLUMN `phone` VARCHAR(255) NULL;
 
 -- Ejemplo: Modificar columna
 -- ALTER TABLE `tabla` MODIFY COLUMN `columna` VARCHAR(500) NOT NULL;

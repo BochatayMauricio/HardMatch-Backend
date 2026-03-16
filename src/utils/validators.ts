@@ -86,6 +86,26 @@ export const dtoSchemas = {
   },
 };
 
+// ==================== SCHEMAS DE PRODUCTOS ====================
+export const createProductSchema = z.object({
+  name: z.string().min(3, "El nombre debe tener al menos 3 caracteres").max(255),
+  urlAccess: z.string().url("Debe ser una URL válida").optional().or(z.literal('')),
+  price: z.number().positive("El precio debe ser mayor a 0"),
+  brandId: z.number().int().positive("El ID de la marca debe ser válido"),
+  categoryId: z.number().int().positive("El ID de la categoría debe ser válido")
+});
+
+// ==================== SCHEMAS DE MARCAS ====================
+export const createBrandSchema = z.object({
+  name: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100),
+  description: z.string().optional(),
+});
+
+// ==================== SCHEMAS DE CATEGORÍAS ====================
+export const createCategorySchema = z.object({
+  name: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100),
+});
+
 // ==================== TIPOS INFERIDOS ====================
 
 export type RegisterInput = z.infer<typeof dtoSchemas.auth.register>;

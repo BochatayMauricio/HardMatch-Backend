@@ -1,8 +1,10 @@
 import { Router } from 'express';
-import { create, getAll, getById, remove, update } from '../controllers/product.controller.js';
+import { create, getAll, getById } from '../controllers/category.controller.js';
 import { validateSchema } from '../middlewares/validateData.middleware.js';
-import { createProductSchema } from '../../utils/validators.js';
-import { authenticate } from '../middlewares/auth.middleware.js';
+import { createCategorySchema } from '../../utils/validators.js';
+
+// Asumiendo que Valentino ya armó este middleware:
+import { authenticate } from '../middlewares/auth.middleware.js'; 
 
 const router = Router();
 
@@ -13,12 +15,11 @@ router.get('/', getAll);
 router.get('/:id', getById);
 
 // ==========================================
-// RUTAS PRIVADAS (Requieren token)
+// RUTAS PÚBLICAS (Cualquier usuario o visitante)
 // ==========================================
 router.use(authenticate); // Aplica autenticación a todas las rutas de este router
 
-router.post('/', validateSchema(createProductSchema), create);
-router.put('/:id', validateSchema(createProductSchema), update);
-router.delete('/:id', remove)
+// POST, PUT, DELETE protegidos
+router.post('/', validateSchema(createCategorySchema), create);
 
 export default router;
