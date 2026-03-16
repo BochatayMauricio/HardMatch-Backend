@@ -14,6 +14,7 @@ import userRoutes from "./api/routes/user.router.js";
 import productRoutes from "./api/routes/product.router.js";
 import brandRoutes from "./api/routes/brand.routes.js";
 import categoryRoutes from "./api/routes/category.routes.js";
+import listingRoutes from "./api/routes/listing.routes.js";
 // import productRoutes from "./api/routes/product.router.js";
 // import adminRoutes from "./api/routes/admin.router.js";
 // import chatbotRoutes from "./api/routes/chatbot.router.js";
@@ -52,6 +53,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/products", productRoutes);
 app.use('/api/brands', brandRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use("/api/listings", listingRoutes);
 // app.use("/api/admin", adminRoutes);
 // app.use("/api/chatbot", chatbotRoutes);
 
