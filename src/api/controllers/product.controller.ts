@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import * as productService from '../../core/services/product.service.js';
+import { ProductFilters } from '../../core/interfaces/product.interfaces.js';
 
 export const create = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -17,7 +18,17 @@ export const create = async (req: Request, res: Response): Promise<void> => {
 
 export const getAll = async (req: Request, res: Response): Promise<void> => {
     try {
-        const products = await productService.listProducts();
+        // Le decimos explícitamente a TypeScript que este objeto es de tipo ProductFilters
+        const filters: ProductFilters = {
+            search: req.query.search as string | undefined,
+            minPrice: req.query.minPrice ? Number(req.query.minPrice) : undefined,
+            maxPrice: req.query.maxPrice ? Number(req.query.maxPrice) : undefined,
+            brandId: req.query.brandId ? Number(req.query.brandId) : undefined,
+            categoryId: req.query.categoryId ? Number(req.query.categoryId) : undefined,
+        };
+
+        const products = await productService.listProducts(filters);
+        
         res.status(200).json({ 
             success: true, 
             count: products.length, 

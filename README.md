@@ -201,3 +201,51 @@ Esto mostrará algo como:
 - **Validación:** Zod
 - **Autenticación:** JWT (jsonwebtoken) + bcrypt
 - **HTTP Client:** Axios (para consumir microservicios)
+
+
+## 🚀 Documentación: Motor de Búsqueda y Filtros de Productos
+# 📌 Endpoint Principal
+`GET /api/products`
+
+Este endpoint funciona con un constructor de consultas dinámico.
+El Controlador atrapa los parámetros que vienen en la URL (req.query), los formatea asegurando que sean números o strings, y se los pasa al Servicio. 
+El Servicio evalúa qué parámetros llegaron y usa los Operadores de Sequelize (Op) para armar la consulta SQL a medida antes de pegarle a la base de datos.
+
+# 🛠️ Parámetros Aceptados (Query Params)
+Todos los parámetros son opcionales y combinables entre sí:
+
+- search (string): Busca coincidencias parciales en el nombre del producto (usa LIKE).
+
+- minPrice (number): Filtra productos con precio mayor o igual a este valor.
+
+- maxPrice (number): Filtra productos con precio menor o igual a este valor.
+
+- brandId (number): Trae solo productos de una marca específica (coincidencia exacta).
+
+- categoryId (number): Trae solo productos de una categoría específica (coincidencia exacta).
+
+# 🔥 Casos de Uso y Posibilidades (Frontend e IA)
+
+1. Navegación libre (El Home)
+Si el Frontend no envía nada, el endpoint devuelve todo el catálogo activo.
+
+`GET /api/products`
+
+2. Barra de búsqueda superior
+Cuando el usuario tipea algo en el buscador principal.
+
+`GET /api/products?search=Ryzen`
+
+3. Panel de Filtros Laterales (Estilo Mercado Libre)
+Cuando el usuario entra a la sección "Monitores" y mueve la barrita de precio máximo.
+
+`GET /api/products?categoryId=3&maxPrice=450000`
+
+4. Interacción con el Chatbot de IA
+Este es el caso de uso más importante para nuestro proyecto. Cuando el microservicio de IA detecte la intención del usuario (ej: "Busco una notebook marca Asus por menos de 1 millón"), el bot no necesita lógica compleja. Simplemente debe armar esta URL y consultar nuestro backend:
+
+`GET /api/products?categoryId=1&brandId=4&maxPrice=1000000`
+
+5. Búsquedas hiper-específicas (Filtro Total)
+
+`GET /api/products?categoryId=1&brandId=2&search=Gamer&minPrice=800000&maxPrice=1500000`
