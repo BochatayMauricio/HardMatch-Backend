@@ -17,3 +17,18 @@ export interface UserDTO {
   phone: string;
   role: "ADMIN" | "CLIENT";
 }
+
+export interface FavoriteWithProductDTO {
+  id: number;
+  idUser: number;
+  idProduct: number;
+  quantity: number;
+  product: {
+    id: number;
+    name: string;
+    price: number;
+    urlAccess?: string;
+  };
+  createdAt: Date;
+  updatedAt: Date;
+}

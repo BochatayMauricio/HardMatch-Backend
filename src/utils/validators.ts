@@ -84,6 +84,14 @@ export const dtoSchemas = {
       phone: fields.phone,
     }),
   },
+  favorites: {
+    addFavorite: z.object({
+      idProduct: fields.id,
+    }),
+    removeFavorite: z.object({
+      idProduct: fields.id,
+    }),
+  },
 };
 
 // ==================== TIPOS INFERIDOS ====================
@@ -92,4 +100,8 @@ export type RegisterInput = z.infer<typeof dtoSchemas.auth.register>;
 export type LoginInput = z.infer<typeof dtoSchemas.auth.login>;
 export type ChangePasswordInput = z.infer<
   typeof dtoSchemas.auth.changePassword
+>;
+export type AddFavoriteInput = z.infer<typeof dtoSchemas.favorites.addFavorite>;
+export type RemoveFavoriteInput = z.infer<
+  typeof dtoSchemas.favorites.removeFavorite
 >;
