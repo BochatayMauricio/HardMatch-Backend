@@ -70,3 +70,25 @@ export const remove = async (req: Request, res: Response): Promise<void> => {
         res.status(500).json({ success: false, message: 'Error interno del servidor' });
     }
 };
+
+export const compare = async (req: Request, res: Response): Promise<void> => {
+    try {
+        // Zod ya validó que productIds sea un array de números de tamaño 2 o 3
+        const { productIds } = req.body;
+
+        const products = await productService.compareProducts(productIds);
+
+        res.status(200).json({ 
+            success: true, 
+            message: 'Productos obtenidos para comparar',
+            data: products 
+        });
+    } catch (error: any) {
+        console.error('Error al comparar productos:', error);
+        // Si es un error de nuestras reglas de negocio (ej: distinta categoría), devolvemos ese texto con status 400
+        res.status(400).json({ 
+            success: false, 
+            message: error instanceof Error ? error.message : 'Error al comparar los productos' 
+        });
+    }
+};

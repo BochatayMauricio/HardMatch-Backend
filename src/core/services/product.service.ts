@@ -46,3 +46,37 @@ export const deleteProduct = async (id: number) => {
     );
     return affectedRows > 0; // Devuelve true si lo borró, false si no lo encontró
 };
+
+// 4. Comparar Productos
+export const compareProducts = async (productIds: number[]) => {
+    const products = await Product.findAll({
+        where: { 
+            id: productIds,
+            isActive: true 
+        },
+        include: ['brand', 'category'] 
+    });
+
+    // Validamos que se hayan encontrado TODOS los que el usuario pidió
+    if (products.length !== productIds.length) {
+        throw new Error("Uno o más productos seleccionados no existen o no están disponibles");
+    }
+
+    // Aislamos el primer producto para que TypeScript lo evalúe
+    const firstProduct = products[0];
+    
+    // Si por alguna razón extraña no existe, cortamos acá
+    if (!firstProduct) {
+        throw new Error("Error al obtener el producto principal para comparar");
+    }
+
+    const firstCategoryId = firstProduct.toJSON().categoryId;
+    
+    const allSameCategory = products.every(product => product.toJSON().categoryId === firstCategoryId);
+
+    if (!allSameCategory) {
+        throw new Error("No se pueden comparar productos de distintas categorías");
+    }
+
+    return products;
+};

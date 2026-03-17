@@ -113,3 +113,19 @@ export type LoginInput = z.infer<typeof dtoSchemas.auth.login>;
 export type ChangePasswordInput = z.infer<
   typeof dtoSchemas.auth.changePassword
 >;
+
+// ==================== SCHEMAS DE FAVORITOS ====================
+export const addFavoriteSchema = z.object({
+  idProduct: z.number().int().positive("El ID del producto es inválido"),
+  quantity: z.number().int().positive("La cantidad debe ser mayor a 0").optional().default(1),
+});
+
+// ==================== SCHEMAS DE COMPARATIVA DE PRODUCTOS ====================
+
+export const compareProductsSchema = z.object({
+  productIds: z.array(
+    z.number().int().positive("Los IDs deben ser números positivos")
+  )
+  .min(2, "Debes seleccionar al menos 2 productos para comparar")
+  .max(3, "Puedes comparar un máximo de 3 productos a la vez")
+});
