@@ -10,6 +10,7 @@ router.put(
   authenticate,
   userController.modifyProfile.bind(userController),
 );
+
 router.get(
   "/get-by-id/:id",
   authenticate,

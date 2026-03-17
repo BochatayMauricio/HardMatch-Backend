@@ -84,6 +84,23 @@ export const dtoSchemas = {
       phone: fields.phone,
     }),
   },
+  admin: {
+    createUser: z.object({
+      name: fields.name,
+      surname: fields.surname,
+      email: fields.email,
+      username: fields.username,
+      phone: fields.phone,
+      password: fields.password,
+    }),
+    updateUser: z.object({
+      name: fields.name.optional(),
+      surname: fields.surname.optional(),
+      phone: fields.phone.optional(),
+      role: fields.role.optional(),
+      isActive: z.boolean().optional(),
+    }),
+  },
   favorites: {
     addFavorite: z.object({
       idProduct: fields.id,

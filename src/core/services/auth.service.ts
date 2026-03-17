@@ -3,6 +3,7 @@ import jwt, { type SignOptions } from "jsonwebtoken";
 import { z } from "zod";
 import { User } from "../models/User.js";
 import config from "../../config/config.js";
+import { SALT_ROUNDS, ROLE_CLIENT } from "../../config/constants.js";
 import {
   ValidationError,
   ConflictError,
@@ -19,12 +20,8 @@ import type {
 } from "../interfaces/auth.interfaces.js";
 import { validateInputs } from "../tools/validateInputs.js";
 
-const SALT_ROUNDS = 10;
-
 class AuthService {
-  /**
-   * Registra un nuevo usuario con contraseña hasheada
-   */
+
   async register(data: RegisterDTO): Promise<AuthResponse> {
     // Validar datos de entrada
     const validatedData = validateInputs(
@@ -81,7 +78,7 @@ class AuthService {
       email: validatedData.email,
       username: validatedData.username,
       password: hashedPassword,
-      role: validatedData.role || "CLIENT",
+      role: validatedData.role || ROLE_CLIENT,
       phone: validatedData.phone,
     });
 
@@ -97,9 +94,6 @@ class AuthService {
     };
   }
 
-  /**
-   * Inicia sesión verificando credenciales
-   */
   async login(data: LoginDTO): Promise<AuthResponse> {
     // Validar datos de entrada
     const validatedData = validateInputs(dtoSchemas.auth.login, data, "login");
@@ -152,9 +146,6 @@ class AuthService {
     };
   }
 
-  /**
-   * Genera un token JWT para el usuario
-   */
   private generateToken(user: User): string {
     const payload: JwtPayload = {
       userId: user.id,
@@ -168,9 +159,6 @@ class AuthService {
     } as SignOptions);
   }
 
-  /**
-   * Cambia la contraseña de un usuario
-   */
   async changePassword(userId: number, data: ChangePasswordDTO): Promise<void> {
     // Validar datos de entrada
     const validatedData = validateInputs(
