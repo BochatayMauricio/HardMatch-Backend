@@ -32,4 +32,3 @@ export const getById = async (req: Request, res: Response): Promise<void> => {
     }
 };
 
-// ... (Puedes agregar los métodos update y remove siguiendo la misma lógica del productController)

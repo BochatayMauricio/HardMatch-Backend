@@ -106,6 +106,26 @@ export const createCategorySchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100),
 });
 
+
+// ==================== SCHEMAS DE OFERTAS ====================
+export const createListingSchema = z.object({
+  productId: z.number().int().positive("El ID del producto es obligatorio"),
+  priceTotal: z.number().positive("El precio debe ser mayor a 0"),
+  percentOff: z.number().min(0).max(100).optional(),
+  urlAccess: z.string().url("Debe ser una URL válida").optional(),
+  expirationAt: z.string().datetime().optional() // Fecha en formato ISO 8601
+});
+
+// ==================== SCHEMAS DE CARACTERÍSTICAS ====================
+export const createFeatureSchema = z.object({
+  keyword: z.string().min(2, "La clave debe tener al menos 2 caracteres").max(100),
+  value: z.string().min(1, "El valor es obligatorio").max(255)
+});
+
+// Validar la asociación (tabla pivote)
+export const assignFeatureSchema = z.object({
+  idFeature: z.number().int().positive("El ID de la característica es inválido")
+});
 // ==================== TIPOS INFERIDOS ====================
 
 export type RegisterInput = z.infer<typeof dtoSchemas.auth.register>;

@@ -18,7 +18,7 @@ router.get('/:id', getById);
 // ==========================================
 // RUTAS PRIVADAS (Requieren token)
 // ==========================================
-router.use(authenticate); // Aplica autenticación a todas las rutas de este router para abajo
+router.use(authenticate);
 
 router.post('/', validateSchema(createProductSchema), create);
 router.put('/:id', validateSchema(createProductSchema), update);
