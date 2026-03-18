@@ -17,22 +17,4 @@ router.get(
   userController.getUserById.bind(userController),
 );
 
-router.post(
-  "/favorites/add",
-  authenticate,
-  userController.addFavorite.bind(userController),
-);
-
-router.get(
-  "/favorites",
-  authenticate,
-  userController.getFavorites.bind(userController),
-);
-
-router.delete(
-  "/favorites/:idProduct",
-  authenticate,
-  userController.removeFavorite.bind(userController),
-);
-
 export default router;
