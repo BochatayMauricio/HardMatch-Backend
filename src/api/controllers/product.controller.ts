@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import * as productService from '../../core/services/product.service.js';
 import { ProductFilters } from '../../core/interfaces/product.interfaces.js';
+import { InternalError } from '../../utils/errors.js';
 
 export const create = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -11,8 +12,11 @@ export const create = async (req: Request, res: Response): Promise<void> => {
             data: product 
         });
     } catch (error) {
-        console.error('Error al crear producto:', error);
-        res.status(500).json({ success: false, message: 'Error interno del servidor' });
+         throw new InternalError('Error al crear el producto', {
+            resource: 'Product',
+            action: 'create',
+            details: { body: req.body, error }
+        });
     }
 };
 
@@ -35,8 +39,11 @@ export const getAll = async (req: Request, res: Response): Promise<void> => {
             data: products 
         });
     } catch (error) {
-        console.error('Error al listar productos:', error);
-        res.status(500).json({ success: false, message: 'Error interno del servidor' });
+        throw new InternalError('Error al listar productos', {
+            resource: 'Product',
+            action: 'getAll',
+            details: { query: req.query, error }
+        })
     }
 };
 

@@ -1,6 +1,4 @@
-// src/core/models/index.ts
 // Exporta todos los modelos y define las asociaciones
-
 import { sequelize } from "../../config/database.js";
 
 // Importar modelos
