@@ -68,9 +68,7 @@ class UserService {
     return user.toJSON() as UserDTO;
   }
 
-  /**
-   * Obtiene un usuario por su ID
-   */
+
   async getUserById(id: number): Promise<UserDTO> {
     const user = await User.findByPk(id, {
       attributes: { exclude: ["password"] },
