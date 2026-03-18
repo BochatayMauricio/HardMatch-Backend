@@ -1,12 +1,12 @@
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import * as featureService from '../../core/services/feature.service.js';
 
-export const create = async (req: Request, res: Response): Promise<void> => {
+export const create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const feature = await featureService.addFeature(req.body);
         res.status(201).json({ success: true, data: feature });
     } catch (error) {
-        res.status(500).json({ success: false, message: 'Error al crear la característica' });
+        next(error);
     }
 };
 

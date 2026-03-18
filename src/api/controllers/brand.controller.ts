@@ -1,34 +1,37 @@
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import * as brandService from '../../core/services/brand.service.js';
+import { NotFoundError} from "../../utils/errors.js";
 
-export const create = async (req: Request, res: Response): Promise<void> => {
+export const create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const brand = await brandService.addBrand(req.body);
         res.status(201).json({ success: true, data: brand });
     } catch (error) {
-        res.status(500).json({ success: false, message: 'Error al crear la marca' });
+        next(error);
     }
 };
 
-export const getAll = async (req: Request, res: Response): Promise<void> => {
+export const getAll = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const brands = await brandService.listBrands();
         res.status(200).json({ success: true, data: brands });
     } catch (error) {
-        res.status(500).json({ success: false, message: 'Error al obtener marcas' });
+        next(error);
     }
 };
 
-export const getById = async (req: Request, res: Response): Promise<void> => {
+export const getById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const brand = await brandService.getBrandById(Number(req.params.id));
         if (!brand) {
-            res.status(404).json({ success: false, message: 'Marca no encontrada' });
-            return;
+            throw new NotFoundError('Marca no encontrada',{ 
+                resource: 'brand', 
+                action: 'getById', 
+            });
         }
         res.status(200).json({ success: true, data: brand });
     } catch (error) {
-        res.status(500).json({ success: false, message: 'Error al obtener la marca' });
+        next(error);
     }
 };
 

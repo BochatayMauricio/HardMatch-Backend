@@ -84,6 +84,31 @@ export const dtoSchemas = {
       phone: fields.phone,
     }),
   },
+  admin: {
+    createUser: z.object({
+      name: fields.name,
+      surname: fields.surname,
+      email: fields.email,
+      username: fields.username,
+      phone: fields.phone,
+      password: fields.password,
+    }),
+    updateUser: z.object({
+      name: fields.name.optional(),
+      surname: fields.surname.optional(),
+      phone: fields.phone.optional(),
+      role: fields.role.optional(),
+      isActive: z.boolean().optional(),
+    }),
+  },
+  favorites: {
+    addFavorite: z.object({
+      idProduct: fields.id,
+    }),
+    removeFavorite: z.object({
+      idProduct: fields.id,
+    }),
+  },
 };
 
 // ==================== SCHEMAS DE PRODUCTOS ====================
@@ -149,3 +174,7 @@ export const compareProductsSchema = z.object({
   .min(2, "Debes seleccionar al menos 2 productos para comparar")
   .max(3, "Puedes comparar un máximo de 3 productos a la vez")
 });
+export type AddFavoriteInput = z.infer<typeof dtoSchemas.favorites.addFavorite>;
+export type RemoveFavoriteInput = z.infer<
+  typeof dtoSchemas.favorites.removeFavorite
+>;

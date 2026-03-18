@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
+import { ROLE_ADMIN, ROLE_CLIENT } from "../../config/constants.js";
 import { authService } from "../../core/services/auth.service.js";
 import type { JwtPayload } from "../../core/interfaces/auth.interfaces.js";
 import type { UserAttributes } from "../../core/models/User.js";
@@ -110,9 +111,9 @@ export const authorize = (...allowedRoles: Array<"ADMIN" | "CLIENT">) => {
 /**
  * Middleware que solo permite acceso a administradores
  */
-export const adminOnly = authorize("ADMIN");
+export const adminOnly = authorize(ROLE_ADMIN);
 
 /**
  * Middleware que permite acceso a clientes y administradores
  */
-export const clientOrAdmin = authorize("CLIENT", "ADMIN");
+export const clientOrAdmin = authorize(ROLE_CLIENT, ROLE_ADMIN);
