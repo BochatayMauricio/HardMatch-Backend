@@ -1,7 +1,7 @@
 import { ProductAttributes } from '../models/Product.js';
 import { Op } from 'sequelize';
 import { ProductFilters } from '../interfaces/product.interfaces.js'; // <-- Importamos la interfaz
-import { Product, Brand, Category, Feature, Listing } from '../models/index.js';
+import { Product, Brand, Category, Feature, Listing, Store } from '../models/index.js';
 
 
 // Omitimos el 'id' porque la base de datos lo autogenera
@@ -32,9 +32,34 @@ export const listProducts = async (filters: ProductFilters = {}) => {
 
     const products = await Product.findAll({
         where: whereClause,
-    });
-    
-    return products;
+        // 💡 Ahora el catálogo principal también recibe TODA la info anidada
+        include: [
+            { model: Brand, as: 'brand', attributes: ['name'] },
+            { model: Category, as: 'category', attributes: ['name'] },
+            { 
+                model: Feature, 
+                as: 'features', 
+                attributes: ['keyword', 'value'], 
+                through: { attributes: [] } 
+            },
+            { 
+                model: Listing, 
+                as: 'listings', 
+                attributes: ['priceTotal', 'urlAccess', 'percentOff'],
+                where: { isActive: true },
+                required: false,
+                // 💡 LA MAGIA DE LA TIENDA:
+                include: [
+                    {
+                        model: Store,
+                        as: 'store',
+                        attributes: ['id', 'name', 'logo']
+                    }
+                ]
+            }
+        ]
+})
+return products
 };
 
 // 1. Obtener por ID
@@ -42,32 +67,36 @@ export const getProductById = async (id: number) => {
     const product = await Product.findOne({
         where: { id, isActive: true },
         include: [
-            // Traemos la Marca asociada
             { 
                 model: Brand, 
                 as: 'brand', 
-                attributes: ['name'] // Solo queremos el nombre, no toda la metadata
+                attributes: ['name'] 
             },
-            // Traemos la Categoría asociada
             { 
                 model: Category, 
                 as: 'category', 
                 attributes: ['name'] 
             },
-            // Traemos las Características Técnicas
             { 
                 model: Feature, 
                 as: 'features', 
                 attributes: ['keyword', 'value'], 
-                through: { attributes: [] } // Esto oculta la tabla intermedia (product_features) del JSON final
+                through: { attributes: [] } 
             },
-            // Traemos las Ofertas Activas del Scraper
             { 
                 model: Listing, 
                 as: 'listings', 
                 attributes: ['priceTotal', 'urlAccess', 'percentOff'],
                 where: { isActive: true },
-                required: false // LEFT JOIN: trae el producto aunque todavía no tenga ofertas
+                required: false,
+                // 💡 LA MAGIA DE LA TIENDA: Hacemos un include anidado
+                include: [
+                    {
+                        model: Store,
+                        as: 'store',
+                        attributes: ['id', 'name', 'logo']
+                    }
+                ]
             }
         ]
     });
@@ -76,14 +105,13 @@ export const getProductById = async (id: number) => {
 
 // 2. Actualizar un producto
 export const updateProduct = async (id: number, data: Partial<ProductAttributes>) => {
-    // El update de Sequelize devuelve un array donde el primer valor es la cantidad de filas afectadas
     const [affectedRows] = await Product.update(data, {
         where: { id, isActive: true }
     });
     
-    if (affectedRows === 0) return null; // Si es 0, el producto no existe o está inactivo
+    if (affectedRows === 0) return null;
     
-    return await getProductById(id); // Devolvemos el producto actualizado
+    return await getProductById(id);
 };
 
 // 3. Eliminar (Soft Delete)

@@ -1,7 +1,7 @@
 -- =============================================================
 -- MIGRACION HARDMATCH DATABASE
--- Fecha: 2026-02-19
--- Descripción: Crea todas las tablas del sistema HardMatch
+-- Fecha: 2026-03-22
+-- Descripción: Crea todas las tablas del sistema HardMatch (Incluye Stores)
 -- =============================================================
 
 -- Desactivar chequeo de foreign keys temporalmente
@@ -45,6 +45,21 @@ CREATE TABLE IF NOT EXISTS `brands` (
 CREATE TABLE IF NOT EXISTS `categories` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(100) NOT NULL,
+  `isActive` TINYINT(1) DEFAULT 1,
+  `createdAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================================
+-- TABLA: stores (NUEVA TABLA)
+-- =============================================================
+CREATE TABLE IF NOT EXISTS `stores` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(100) NOT NULL,
+  `logo` VARCHAR(255) NULL,
+  `description` VARCHAR(255) NULL,
+  `location` VARCHAR(255) NULL,
   `isActive` TINYINT(1) DEFAULT 1,
   `createdAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -111,7 +126,7 @@ CREATE TABLE IF NOT EXISTS `product_features` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =============================================================
--- TABLA: prices (historial de precios)
+-- TABLA: prices (historial de precios base)
 -- =============================================================
 CREATE TABLE IF NOT EXISTS `prices` (
   `id` INT NOT NULL AUTO_INCREMENT,
@@ -128,12 +143,13 @@ CREATE TABLE IF NOT EXISTS `prices` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =============================================================
--- TABLA: listings
+-- TABLA: listings (MODIFICADA: Ahora se relaciona con Stores)
 -- =============================================================
 CREATE TABLE IF NOT EXISTS `listings` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `percent_off` DECIMAL(5,2) NULL,
   `productId` INT NOT NULL,
+  `storeId` INT NOT NULL, -- NUEVA COLUMNA RELACIONAL
   `price_total` DECIMAL(10,2) NOT NULL,
   `urlAccess` VARCHAR(500) NULL,
   `expirationAt` DATETIME NULL,
@@ -142,9 +158,15 @@ CREATE TABLE IF NOT EXISTS `listings` (
   `updatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   INDEX `fk_listings_product_idx` (`productId`),
+  INDEX `fk_listings_store_idx` (`storeId`),
   CONSTRAINT `fk_listings_product`
     FOREIGN KEY (`productId`)
     REFERENCES `products` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  CONSTRAINT `fk_listings_store`
+    FOREIGN KEY (`storeId`)
+    REFERENCES `stores` (`id`)
     ON DELETE CASCADE
     ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
