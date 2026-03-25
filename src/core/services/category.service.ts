@@ -1,6 +1,5 @@
 import { ConflictError } from '../../utils/errors.js';
 import { Category, CategoryAttributes } from '../models/Category.js';
-import { Brand } from '../models/index.js';
 
 export const addCategory = async (data: Omit<CategoryAttributes, 'id'>) => {
     const existingCategory = await Category.findOne({ 
