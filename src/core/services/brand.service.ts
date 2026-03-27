@@ -1,6 +1,17 @@
 import { Brand, BrandAttributes } from '../models/Brand.js';
+import { ConflictError } from '../../utils/errors.js';
 
 export const addBrand = async (data: Omit<BrandAttributes, 'id'>) => {
+    const existingBrand = await Brand.findOne({ 
+        where: { name: data.name } 
+    });
+    if (existingBrand) {
+        throw new ConflictError(`La marca '${data.name}' ya se encuentra registrada`, {
+            resource: 'Brand',
+            action: 'create',
+            details: { name: data.name, existingId: existingBrand.id }
+        });
+    }
     return await Brand.create(data);
 };
 

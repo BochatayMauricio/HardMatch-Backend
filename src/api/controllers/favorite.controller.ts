@@ -10,9 +10,9 @@ export const add = async (req: Request, res: Response, next: NextFunction): Prom
       throw new UnauthorizedError("Usuario no autenticado", { action: "addFavorite" });
     }
 
-    const { idProduct, quantity } = req.body;
+    const { idProduct} = req.body;
 
-    const favorite = await favoriteService.addFavorite(idUser, idProduct, quantity);
+    const favorite = await favoriteService.addFavorite(idUser, idProduct);
     res.status(201).json({ success: true, message: "Producto agregado a favoritos", data: favorite });
   } catch (error) {
     next(error);

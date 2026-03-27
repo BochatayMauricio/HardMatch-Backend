@@ -174,7 +174,4 @@ export const compareProductsSchema = z.object({
   .min(2, "Debes seleccionar al menos 2 productos para comparar")
   .max(3, "Puedes comparar un máximo de 3 productos a la vez")
 });
-export type AddFavoriteInput = z.infer<typeof dtoSchemas.favorites.addFavorite>;
-export type RemoveFavoriteInput = z.infer<
-  typeof dtoSchemas.favorites.removeFavorite
->;
+;
