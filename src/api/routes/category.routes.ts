@@ -6,18 +6,8 @@ import { authenticate } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
-// ==========================================
-// RUTAS PÚBLICAS (Cualquier usuario o visitante)
-// ==========================================
 router.get('/', getAll);
 router.get('/:id', getById);
-
-// ==========================================
-// RUTAS PRIVADAS (Requieren token)
-// ==========================================
-router.use(authenticate); // Aplica autenticación a todas las rutas de este router
-
-// POST, PUT, DELETE protegidos
-router.post('/', validateSchema(createCategorySchema), create);
+router.post('/',authenticate, validateSchema(createCategorySchema), create);
 
 export default router;
