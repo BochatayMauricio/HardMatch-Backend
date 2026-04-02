@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { procesarMensajeChat } from '../../core/services/chatbot.service.js';
 
 export const handleChat = async (req: Request, res: Response): Promise<void> => {
-    try {
+    try {        
         const { message, history } = req.body;
         const userId = req.user?.userId || (req.user as any)?.id;
 
@@ -15,7 +15,10 @@ export const handleChat = async (req: Request, res: Response): Promise<void> => 
 
         res.status(200).json({ success: true, reply });
 
-    } catch (error) {
-        // ...
+    } catch (error) {        
+        res.status(500).json({ 
+            success: false, 
+            reply: "Ups, los cables se me cruzaron en el servidor." 
+        });
     }
 };
