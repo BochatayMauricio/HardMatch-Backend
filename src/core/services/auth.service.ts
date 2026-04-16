@@ -79,7 +79,7 @@ class AuthService {
       username: validatedData.username,
       password: hashedPassword,
       role: validatedData.role || ROLE_CLIENT,
-      phone: validatedData.phone || "0",
+      phone: validatedData.phone,
     });
 
     // Generar token JWT
