@@ -6,22 +6,12 @@ import { authenticate } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
-// ==========================================
-// RUTAS PÚBLICAS (Cualquier usuario o visitante)
-// ==========================================
 router.get('/', getAll);
-
 router.post('/compare', validateSchema(compareProductsSchema), compare);
-
 router.get('/:id', getById);
 
-// ==========================================
-// RUTAS PRIVADAS (Requieren token)
-// ==========================================
-router.use(authenticate);
-
-router.post('/', validateSchema(createProductSchema), create);
-router.put('/:id', validateSchema(createProductSchema), update);
-router.delete('/:id', remove);
+router.post('/',authenticate, validateSchema(createProductSchema), create);
+router.put('/:id',authenticate, validateSchema(createProductSchema), update);
+router.delete('/:id',authenticate, remove);
 
 export default router;

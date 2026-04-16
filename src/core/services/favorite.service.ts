@@ -25,8 +25,7 @@ export const getUserFavorites = async (idUser: number) => {
   // Traemos solo los favoritos que estén activos
   return await Favorite.findAll({
     where: { idUser, isActive: true },
-    // Nota: Cuando Vicente termine las asociaciones, acá sumaremos un "include" 
-    // para traer los datos del Producto completo y no solo su ID.
+    include: ['product']
   });
 };
 

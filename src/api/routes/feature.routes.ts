@@ -11,12 +11,7 @@ const router = Router();
 // ==========================================
 router.get('/', getAll);
 router.get('/product/:productId', getByProduct);
-
-router.use(authenticate);
-// ==========================================
-// RUTAS PRIVADAS (Requieren token)
-// ==========================================
-router.post('/', validateSchema(createFeatureSchema), create);
-router.post('/product/:productId', validateSchema(assignFeatureSchema), assignToProduct);
+router.post('/',authenticate, validateSchema(createFeatureSchema), create);
+router.post('/product/:productId',authenticate, validateSchema(assignFeatureSchema), assignToProduct);
 
 export default router;

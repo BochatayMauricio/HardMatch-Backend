@@ -17,16 +17,14 @@ import analyticsRouter from './api/routes/analytics.router.js';
 import listingRoutes from "./api/routes/listing.routes.js";
 import featureRoutes from "./api/routes/feature.routes.js";
 import adminRoutes from "./api/routes/admin.router.js";
+import chatbotRoutes from "./api/routes/chatbot.routes.js"
 import storeRoutes from "./api/routes/store.routes.js"
 // import productRoutes from "./api/routes/product.router.js";
-// import adminRoutes from "./api/routes/admin.router.js";
-// import chatbotRoutes from "./api/routes/chatbot.router.js";
-
 const app: Application = express();
 
 // ==================== MIDDLEWARES ====================
 
-// CORS
+// CORSa
 app.use(
   cors({
     origin: config.server.corsOrigin,
@@ -60,9 +58,8 @@ app.use("/api/listings", listingRoutes);
 app.use("/api/features", featureRoutes);
 app.use("/api/admin", adminRoutes);
 app.use('/api/stores', storeRoutes)
-// app.use("/api/chatbot", chatbotRoutes);
 app.use("/api/admin", adminRoutes);
-
+app.use('/api/chatbot', chatbotRoutes);
 
 // ==================== MANEJO DE ERRORES ====================
 // Error handler global estandarizado
