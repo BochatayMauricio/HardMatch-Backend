@@ -17,4 +17,10 @@ router.get(
   userController.getUserById.bind(userController),
 );
 
+router.put(
+  "/change-password",
+  authenticate,
+  userController.changePassword.bind(userController)
+);
+
 export default router;

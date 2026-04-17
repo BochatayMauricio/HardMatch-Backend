@@ -80,6 +80,7 @@ export const dtoSchemas = {
     modifyProfile: z.object({
       name: fields.name,
       surname: fields.surname,
+      username: fields.username,
       email: fields.email,
       phone: fields.phone,
     }),
@@ -174,4 +175,9 @@ export const compareProductsSchema = z.object({
   .min(2, "Debes seleccionar al menos 2 productos para comparar")
   .max(3, "Puedes comparar un máximo de 3 productos a la vez")
 });
-;
+
+// En tu archivo de esquemas (ej. dtoSchemas.users)
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "La contraseña actual es requerida"),
+  newPassword: z.string().min(6, "La nueva contraseña debe tener al menos 6 caracteres")
+});

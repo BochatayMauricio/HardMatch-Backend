@@ -53,6 +53,28 @@ class UserController {
       next(error);
     }
   }
+  
+  async changePassword(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        throw new UnauthorizedError("No autenticado");
+      }
+
+      await userService.changePassword(userId, req.body);
+
+      res.status(200).json({
+        success: true,
+        message: "Contraseña actualizada exitosamente",
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const userController = new UserController();
