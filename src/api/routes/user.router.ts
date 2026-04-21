@@ -23,4 +23,16 @@ router.put(
   userController.changePassword.bind(userController)
 );
 
+router.get(
+  "/preferences",
+  authenticate,
+  userController.getPreferences.bind(userController)
+);
+
+router.put(
+  "/preferences",
+  authenticate,
+  userController.updatePreferences.bind(userController)
+);
+
 export default router;

@@ -1,5 +1,6 @@
 import { Listing, type ListingAttributes } from '../models/Listing.js';
 import { Price } from '../models/Price.js';
+import { processListingMatch } from './matching.service.js';
 
 export const addListing = async (data: ListingAttributes) => {
     // 1. Creamos la oferta en la tabla listings
@@ -11,6 +12,7 @@ export const addListing = async (data: ListingAttributes) => {
         idProduct: data.productId
     });
 
+    processListingMatch(newListing.toJSON() as ListingAttributes).catch(err => console.error(err));    
     return newListing;
 };
 

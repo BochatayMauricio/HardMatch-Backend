@@ -105,5 +105,7 @@ class UserService {
     // 5. Guardamos en la base de datos
     await user.update({ password: hashedNewPassword });
   }
+
+  
 }
 export const userService = new UserService();

@@ -6,6 +6,7 @@ export interface ListingAttributes {
   id?: number;
   percentOff?: number;
   productId: number;
+  storeId: number;
   priceTotal: number;
   urlAccess?: string;
   expirationAt?: Date;
@@ -21,6 +22,7 @@ export class Listing
   public id!: number;
   public percentOff!: number;
   public productId!: number;
+  public storeId!: number;
   public priceTotal!: number;
   public urlAccess!: string;
   public expirationAt!: Date;
@@ -46,6 +48,14 @@ Listing.init(
       allowNull: false,
       references: {
         model: "products",
+        key: "id",
+      },
+    },
+    storeId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: "stores", // <-- Asumiendo que tu tabla de tiendas se llama 'stores'
         key: "id",
       },
     },

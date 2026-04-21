@@ -275,6 +275,65 @@ CREATE TABLE IF NOT EXISTS `audit_logs` (
     ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE user_preferences (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  userId INT NOT NULL UNIQUE,
+  
+  -- Arrays aplanados
+  selectedCategories VARCHAR(255) DEFAULT '',
+  usageTypes VARCHAR(255) DEFAULT '',
+  preferredBrands VARCHAR(255) DEFAULT '',
+  excludedBrands VARCHAR(255) DEFAULT '',
+  priorities VARCHAR(255) DEFAULT 'precio,calidad,rendimiento',
+  
+  -- Presupuesto y booleanos
+  minPrice FLOAT DEFAULT 0,
+  maxPrice FLOAT DEFAULT 500000,
+  flexibleBudget BOOLEAN DEFAULT TRUE,
+  openToNewBrands BOOLEAN DEFAULT TRUE,
+  
+  -- Alertas
+  priceDropAlert BOOLEAN DEFAULT TRUE,
+  newMatchAlert BOOLEAN DEFAULT TRUE,
+  stockAlert BOOLEAN DEFAULT FALSE,
+  dealAlert BOOLEAN DEFAULT TRUE,
+  
+  -- Frecuencia usando ENUM nativo
+  alertFrequency ENUM('inmediato', 'diario', 'semanal', 'nunca') DEFAULT 'diario',
+  
+  -- Timestamps de Sequelize
+  createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  
+  -- Relación fuerte con la tabla de usuarios (asumiendo que se llama 'users')
+  CONSTRAINT fk_user_preferences_user 
+    FOREIGN KEY (userId) 
+    REFERENCES users(id) 
+    ON DELETE CASCADE
+);
+
+CREATE TABLE notifications (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  userId INT NOT NULL,
+  
+  -- Datos de la notificación
+  title VARCHAR(255) NOT NULL,
+  explanation TEXT NOT NULL,
+  
+  -- Estado de lectura (Boolean se traduce a TINYINT(1) en MySQL)
+  isRead BOOLEAN DEFAULT FALSE,
+  
+  -- Timestamps obligatorios de Sequelize
+  createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  actionUrl VARCHAR(500) NULL,
+  
+  -- Relación con el usuario
+  CONSTRAINT fk_notifications_user 
+    FOREIGN KEY (userId) 
+    REFERENCES users(id) 
+    ON DELETE CASCADE
+);
 -- Reactivar chequeo de foreign keys
 SET FOREIGN_KEY_CHECKS = 1;
 

@@ -19,6 +19,8 @@ import featureRoutes from "./api/routes/feature.routes.js";
 import adminRoutes from "./api/routes/admin.router.js";
 import chatbotRoutes from "./api/routes/chatbot.routes.js"
 import storeRoutes from "./api/routes/store.routes.js"
+import notificationRoutes from "./api/routes/notifiaction.routes.js";
+import internalRoutes from "./api/routes/internal.routes.js";
 // import productRoutes from "./api/routes/product.router.js";
 const app: Application = express();
 
@@ -60,6 +62,8 @@ app.use("/api/admin", adminRoutes);
 app.use('/api/stores', storeRoutes)
 app.use("/api/admin", adminRoutes);
 app.use('/api/chatbot', chatbotRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/internal', internalRoutes);
 
 // ==================== MANEJO DE ERRORES ====================
 // Error handler global estandarizado

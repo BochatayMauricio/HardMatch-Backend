@@ -15,6 +15,8 @@ import { Query } from "./Query.js";
 import { Recommendation } from "./Recommendation.js";
 import { AuditLog } from "./Audit_logs.js";
 import { Store } from "./Store.js";
+import { UserPreference } from "./UserPreference.js";
+import { Notification } from "./Notification.js";
 
 // ==================== ASOCIACIONES ====================
 
@@ -83,6 +85,12 @@ User.hasMany(AuditLog, { foreignKey: "actorUserId", as: "auditLogs" });
 Listing.belongsTo(Store, { foreignKey: 'storeId', as: 'store' });
 Store.hasMany(Listing, { foreignKey: 'storeId', as: 'listings' });
 
+User.hasOne(UserPreference, { foreignKey: "userId", as: "preferences" });
+UserPreference.belongsTo(User, { foreignKey: "userId" });
+
+User.hasMany(Notification, { foreignKey: 'userId' });
+Notification.belongsTo(User, { foreignKey: 'userId' });
+
 // ==================== EXPORTACIONES ====================
 
 export {
@@ -99,7 +107,9 @@ export {
   Query,
   Recommendation,
   AuditLog,
-  Store
+  Store,
+  UserPreference,
+  Notification,
 };
 
 // Función para sincronizar modelos (solo para desarrollo)
