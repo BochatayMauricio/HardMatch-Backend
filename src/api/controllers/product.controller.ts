@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import * as productService from '../../core/services/product.service.js';
-import { ProductFilters } from '../../core/interfaces/product.interfaces.js';
+import { ProductFilters, ScraperSyncParams } from '../../core/interfaces/product.interfaces.js';
 import { NotFoundError, ValidationError } from '../../utils/errors.js';
 
 export const create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -90,5 +90,29 @@ export const compare = async (req: Request, res: Response, next: NextFunction): 
         } else {
              next(error);
         }
+    }
+};
+
+export const syncFromScraper = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+): Promise<void> => {
+    try {
+        const payload: ScraperSyncParams = {
+            query: req.body.query,
+            maxPages: req.body.maxPages,
+            includeDetailsMl: req.body.includeDetailsMl
+        };
+
+        const summary = await productService.syncProductsFromScraper(payload);
+
+        res.status(200).json({
+            success: true,
+            message: 'Sincronización de scraping finalizada',
+            data: summary
+        });
+    } catch (error) {
+        next(error);
     }
 };

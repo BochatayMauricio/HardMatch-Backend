@@ -19,16 +19,16 @@ export class Listing
   extends Model<ListingAttributes>
   implements ListingAttributes
 {
-  public id!: number;
-  public percentOff!: number;
-  public productId!: number;
-  public storeId!: number;
-  public priceTotal!: number;
-  public urlAccess!: string;
-  public expirationAt!: Date;
-  public isActive!: boolean;
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare id: number;
+  declare percentOff: number;
+  declare productId: number;
+  declare storeId: number;
+  declare priceTotal: number;
+  declare urlAccess: string;
+  declare expirationAt: Date;
+  declare isActive: boolean;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 }
 
 Listing.init(

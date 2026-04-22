@@ -36,7 +36,11 @@ const envSchema = z.object({
   AI_API_KEY: z.string().optional(),
 
   // Configuración de CORS (Seguridad)
-  CORS_ORIGIN: z.string().default("*"), // En prod cambiar por la URL del frontend
+  CORS_ORIGIN: z
+    .string()
+    .default("http://localhost:4200") // Valor por defecto si no existe la variable
+    .transform((val) => val.split(",").map((origin) => origin.trim())) // Lo convierte en array
+    .pipe(z.array(z.string().url("Cada origen CORS debe ser una URL válida"))),
 });
 
 // Parsear y validar las variables. Si falla, lanza un error y detiene el servidor.

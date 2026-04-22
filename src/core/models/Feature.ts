@@ -13,10 +13,10 @@ export class Feature
   extends Model<FeatureAttributes>
   implements FeatureAttributes
 {
-  public id!: number;
-  public keyword!: string;
-  public value!: string;
-  public isActive!: boolean;
+  declare id: number;
+  declare keyword: string;
+  declare value: string;
+  declare isActive: boolean;
 }
 
 Feature.init(

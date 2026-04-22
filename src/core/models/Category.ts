@@ -14,11 +14,11 @@ export class Category
   extends Model<CategoryAttributes>
   implements CategoryAttributes
 {
-  public id!: number;
-  public name!: string;
-  public isActive!: boolean;
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare id: number;
+  declare name: string;
+  declare isActive: boolean;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 }
 
 Category.init(

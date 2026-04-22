@@ -1,6 +1,7 @@
 import app from "./app.js";
 import config from "./config/config.js";
 import { sequelize } from "./core/models/index.js";
+import { startScraperJob, stopScraperJob } from "./core/services/scraperJob.service.js";
 
 const PORT = config.server.port;
 
@@ -23,6 +24,7 @@ const startServer = async () => {
       console.log(`🚀 Server is running on port ${PORT}`);
       console.log(`🌍 Environment: ${config.env}`);
       console.log(`📡 Gateway ready to proxy requests to microservices`);
+      startScraperJob();
     });
   } catch (error) {
     console.error("❌ Unable to start server:", error);
@@ -38,6 +40,16 @@ process.on("unhandledRejection", (reason, promise) => {
 process.on("uncaughtException", (error) => {
   console.error("Uncaught Exception:", error);
   process.exit(1);
+});
+
+process.on("SIGINT", () => {
+  stopScraperJob();
+  process.exit(0);
+});
+
+process.on("SIGTERM", () => {
+  stopScraperJob();
+  process.exit(0);
 });
 
 // Iniciar servidor

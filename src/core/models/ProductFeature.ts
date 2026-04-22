@@ -11,8 +11,8 @@ export class ProductFeature
   extends Model<ProductFeatureAttributes>
   implements ProductFeatureAttributes
 {
-  public idProduct!: number;
-  public idFeature!: number;
+  declare idProduct: number;
+  declare idFeature: number;
 }
 
 ProductFeature.init(

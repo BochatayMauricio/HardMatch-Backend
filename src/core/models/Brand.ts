@@ -12,12 +12,12 @@ export interface BrandAttributes {
 }
 
 export class Brand extends Model<BrandAttributes> implements BrandAttributes {
-  public id!: number;
-  public name!: string;
-  public description!: string;
-  public isActive!: boolean;
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare id: number;
+  declare name: string;
+  declare description: string;
+  declare isActive: boolean;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 }
 
 Brand.init(

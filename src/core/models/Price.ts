@@ -10,10 +10,10 @@ export interface PriceAttributes {
 }
 
 export class Price extends Model<PriceAttributes> implements PriceAttributes {
-  public id!: number;
-  public price!: number;
-  public idProduct!: number;
-  public readonly createdAt!: Date;
+  declare id: number;
+  declare price: number;
+  declare idProduct: number;
+  declare readonly createdAt: Date;
 }
 
 Price.init(
