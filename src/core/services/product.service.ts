@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { col, fn, Op, Transaction, where as sequelizeWhere } from 'sequelize';
 import config from '../../config/config.js';
-import { ValidationError } from '../../utils/errors.js';
+import { ConflictError, ValidationError } from '../../utils/errors.js';
 import {
     ProductFilters,
     ScrapedFeatureInput,
@@ -27,7 +27,7 @@ import { processListingMatch } from './matching.service.js';
 const DEFAULT_BRAND_NAME = 'Sin marca';
 const DEFAULT_CATEGORY_NAME = 'Sin categoría';
 const DEFAULT_STORE_NAME = 'Tienda desconocida';
-const SCRAPER_TIMEOUT_MS = 90000;
+const SCRAPER_TIMEOUT_MS = 300000;
 
 const normalizeText = (value?: string | null): string => {
     return (value ?? '').trim().replace(/\s+/g, ' ');
@@ -104,35 +104,66 @@ const fetchScrapedProducts = async (params: ScraperSyncParams): Promise<ScrapedP
         const response = await axios.get(endpoint, {
             params: {
                 q: query,
-                max_pages: params.maxPages ?? 1,
-                include_details_ml: params.includeDetailsMl ?? false
+                max_pages: params.maxPages ?? 1
             },
             timeout: SCRAPER_TIMEOUT_MS
         });
 
         if (!Array.isArray(response.data)) {
-            throw new Error('El microservicio no devolvió un array de productos');
+            throw new ConflictError(`El microservicio de scraping no devolvió un array de productos`, {
+                resource: "Product",
+                action: "Scraper",
+            });
         }
 
         return response.data as ScrapedProductInput[];
     } catch (error) {
-        if (axios.isAxiosError(error)) {
-            const status = error.response?.status;
-            const detail =
-                typeof error.response?.data === 'string'
-                    ? error.response.data
-                    : error.response?.data?.detail
-                        ? String(error.response.data.detail)
-                        : error.message;
-
-            throw new Error(
-                `No se pudo consumir el microservicio de scraping${status ? ` (${status})` : ''}: ${detail}`
-            );
-        }
-
-        throw error;
+        throw new ConflictError(`No se pudo consumir el microservicio de scraping`, {
+            resource: "Product",
+            action: "Scraper",
+        });
     }
 };
+
+const fetchScrapedProductsByMercadoLibre = async (params: ScraperSyncParams): Promise<ScrapedProductInput[]>=>{
+    const query = normalizeText(params.query);
+    if (!query) {
+        throw new ValidationError(
+            'Datos inválidos para sincronizar scraping',
+            [{ field: 'query', message: 'El campo query es obligatorio' }],
+            { resource: 'product', action: 'syncProductsFromScraper' }
+        );
+    }
+
+    const scraperBaseUrl = config.services.scraper.url.replace(/\/+$/, '');
+    const endpoint = `${scraperBaseUrl}/mercadolibre/scrape-by-query`;
+
+    try {
+        const response = await axios.get(endpoint, {
+            params: {
+                q: query,
+                max_pages: params.maxPages ?? 1
+            },
+            timeout: SCRAPER_TIMEOUT_MS
+        });
+
+        console.log(`[ProductService] Scraper MercadoLibre response for query "${query}":`, response.data);
+
+        if (!Array.isArray(response.data)) {
+            throw new ConflictError(`El microservicio de scraping no devolvió un array de productos`, {
+                resource: "Product",
+                action: "Scraper",
+            });
+        }
+
+        return response.data as ScrapedProductInput[];
+    } catch (error) {
+        throw new ConflictError(`No se pudo consumir el microservicio de scraping`, {
+            resource: "Product",
+            action: "Scraper",
+        });
+    }
+}
 
 const getOrCreateBrand = async (
     rawName: string | null | undefined,
@@ -354,164 +385,7 @@ const upsertListing = async (
 };
 
 
-// Omitimos el 'id' porque la base de datos lo autogenera
-export const addProduct = async (data: Omit<ProductAttributes, 'id'>) => {
-    const newProduct = await Product.create(data);
-    return newProduct;
-};
-
-export const listProducts = async (filters: ProductFilters = {}) => {
-    const whereClause: any = { isActive: true };
-
-    if (filters.search) {
-        whereClause.name = { [Op.like]: `%${filters.search}%` }; 
-    }
-
-    if (filters.minPrice || filters.maxPrice) {
-        whereClause.price = {};
-        if (filters.minPrice) whereClause.price[Op.gte] = filters.minPrice;
-        if (filters.maxPrice) whereClause.price[Op.lte] = filters.maxPrice;
-    }
-
-    if (filters.brandId) {
-        whereClause.brandId = filters.brandId;
-    }
-    if (filters.categoryId) {
-        whereClause.categoryId = filters.categoryId;
-    }
-
-    const products = await Product.findAll({
-        where: whereClause,
-        // 💡 Ahora el catálogo principal también recibe TODA la info anidada
-        include: [
-            { model: Brand, as: 'brand', attributes: ['name'] },
-            { model: Category, as: 'category', attributes: ['name'] },
-            { 
-                model: Feature, 
-                as: 'features', 
-                attributes: ['keyword', 'value'], 
-                through: { attributes: [] } 
-            },
-            { 
-                model: Listing, 
-                as: 'listings', 
-                attributes: ['priceTotal', 'urlAccess', 'percentOff'],
-                where: { isActive: true },
-                required: false,
-                // 💡 LA MAGIA DE LA TIENDA:
-                include: [
-                    {
-                        model: Store,
-                        as: 'store',
-                        attributes: ['id', 'name', 'logo']
-                    }
-                ]
-            }
-        ]
-})
-return products
-};
-
-// 1. Obtener por ID
-export const getProductById = async (id: number) => {
-    const product = await Product.findOne({
-        where: { id, isActive: true },
-        include: [
-            { 
-                model: Brand, 
-                as: 'brand', 
-                attributes: ['name'] 
-            },
-            { 
-                model: Category, 
-                as: 'category', 
-                attributes: ['name'] 
-            },
-            { 
-                model: Feature, 
-                as: 'features', 
-                attributes: ['keyword', 'value'], 
-                through: { attributes: [] } 
-            },
-            { 
-                model: Listing, 
-                as: 'listings', 
-                attributes: ['priceTotal', 'urlAccess', 'percentOff'],
-                where: { isActive: true },
-                required: false,
-                // 💡 LA MAGIA DE LA TIENDA: Hacemos un include anidado
-                include: [
-                    {
-                        model: Store,
-                        as: 'store',
-                        attributes: ['id', 'name', 'logo']
-                    }
-                ]
-            }
-        ]
-    });
-    return product;
-};
-
-// 2. Actualizar un producto
-export const updateProduct = async (id: number, data: Partial<ProductAttributes>) => {
-    const [affectedRows] = await Product.update(data, {
-        where: { id, isActive: true }
-    });
-    
-    if (affectedRows === 0) return null;
-    
-    return await getProductById(id);
-};
-
-// 3. Eliminar (Soft Delete)
-export const deleteProduct = async (id: number) => {
-    const [affectedRows] = await Product.update(
-        { isActive: false }, 
-        { where: { id, isActive: true } }
-    );
-    return affectedRows > 0; // Devuelve true si lo borró, false si no lo encontró
-};
-
-// 4. Comparar Productos
-export const compareProducts = async (productIds: number[]) => {
-    const products = await Product.findAll({
-        where: { 
-            id: productIds,
-            isActive: true 
-        },
-        include: ['brand', 'category'] 
-    });
-
-    // Validamos que se hayan encontrado TODOS los que el usuario pidió
-    if (products.length !== productIds.length) {
-        throw new Error("Uno o más productos seleccionados no existen o no están disponibles");
-    }
-
-    // Aislamos el primer producto para que TypeScript lo evalúe
-    const firstProduct = products[0];
-    
-    // Si por alguna razón extraña no existe, cortamos acá
-    if (!firstProduct) {
-        throw new Error("Error al obtener el producto principal para comparar");
-    }
-
-    const firstCategoryId = firstProduct.toJSON().categoryId;
-    
-    const allSameCategory = products.every(product => product.toJSON().categoryId === firstCategoryId);
-
-    if (!allSameCategory) {
-        throw new Error("No se pueden comparar productos de distintas categorías");
-    }
-
-    return products;
-};
-
-export const syncProductsFromScraper = async (
-    params: ScraperSyncParams
-): Promise<ScraperSyncResult> => {
-    const scrapedProducts = await fetchScrapedProducts(params);
-    console.log(scrapedProducts);
+const processProductScrapedDate = async (scrapedProducts: ScrapedProductInput[])=>{
     const result: ScraperSyncResult = {
         totalFetched: scrapedProducts.length,
         processed: 0,
@@ -694,6 +568,381 @@ export const syncProductsFromScraper = async (
             result.errors.push({ productName, reason });
         }
     }
+}
 
-    return result;
+
+// Omitimos el 'id' porque la base de datos lo autogenera
+export const addProduct = async (data: Omit<ProductAttributes, 'id'>) => {
+    const newProduct = await Product.create(data);
+    return newProduct;
 };
+
+export const listProducts = async (filters: ProductFilters = {}) => {
+    const whereClause: any = { isActive: true };
+
+    if (filters.search) {
+        whereClause.name = { [Op.like]: `%${filters.search}%` }; 
+    }
+
+    if (filters.minPrice || filters.maxPrice) {
+        whereClause.price = {};
+        if (filters.minPrice) whereClause.price[Op.gte] = filters.minPrice;
+        if (filters.maxPrice) whereClause.price[Op.lte] = filters.maxPrice;
+    }
+
+    if (filters.brandId) {
+        whereClause.brandId = filters.brandId;
+    }
+    if (filters.categoryId) {
+        whereClause.categoryId = filters.categoryId;
+    }
+
+    const products = await Product.findAll({
+        where: whereClause,
+        // 💡 Ahora el catálogo principal también recibe TODA la info anidada
+        include: [
+            { model: Brand, as: 'brand', attributes: ['name'] },
+            { model: Category, as: 'category', attributes: ['name'] },
+            { 
+                model: Feature, 
+                as: 'features', 
+                attributes: ['keyword', 'value'], 
+                through: { attributes: [] } 
+            },
+            { 
+                model: Listing, 
+                as: 'listings', 
+                attributes: ['priceTotal', 'urlAccess', 'percentOff'],
+                where: { isActive: true },
+                required: false,
+                // 💡 LA MAGIA DE LA TIENDA:
+                include: [
+                    {
+                        model: Store,
+                        as: 'store',
+                        attributes: ['id', 'name', 'logo']
+                    }
+                ]
+            }
+        ]
+})
+return products
+};
+
+// 1. Obtener por ID
+export const getProductById = async (id: number) => {
+    const product = await Product.findOne({
+        where: { id, isActive: true },
+        include: [
+            { 
+                model: Brand, 
+                as: 'brand', 
+                attributes: ['name'] 
+            },
+            { 
+                model: Category, 
+                as: 'category', 
+                attributes: ['name'] 
+            },
+            { 
+                model: Feature, 
+                as: 'features', 
+                attributes: ['keyword', 'value'], 
+                through: { attributes: [] } 
+            },
+            { 
+                model: Listing, 
+                as: 'listings', 
+                attributes: ['priceTotal', 'urlAccess', 'percentOff'],
+                where: { isActive: true },
+                required: false,
+                // 💡 LA MAGIA DE LA TIENDA: Hacemos un include anidado
+                include: [
+                    {
+                        model: Store,
+                        as: 'store',
+                        attributes: ['id', 'name', 'logo']
+                    }
+                ]
+            }
+        ]
+    });
+    return product;
+};
+
+// 2. Actualizar un producto
+export const updateProduct = async (id: number, data: Partial<ProductAttributes>) => {
+    const [affectedRows] = await Product.update(data, {
+        where: { id, isActive: true }
+    });
+    
+    if (affectedRows === 0) return null;
+    
+    return await getProductById(id);
+};
+
+// 3. Eliminar (Soft Delete)
+export const deleteProduct = async (id: number) => {
+    const [affectedRows] = await Product.update(
+        { isActive: false }, 
+        { where: { id, isActive: true } }
+    );
+    return affectedRows > 0; // Devuelve true si lo borró, false si no lo encontró
+};
+
+// 4. Comparar Productos
+export const compareProducts = async (productIds: number[]) => {
+    const products = await Product.findAll({
+        where: { 
+            id: productIds,
+            isActive: true 
+        },
+        include: ['brand', 'category'] 
+    });
+
+    // Validamos que se hayan encontrado TODOS los que el usuario pidió
+    if (products.length !== productIds.length) {
+        throw new Error("Uno o más productos seleccionados no existen o no están disponibles");
+    }
+
+    // Aislamos el primer producto para que TypeScript lo evalúe
+    const firstProduct = products[0];
+    
+    // Si por alguna razón extraña no existe, cortamos acá
+    if (!firstProduct) {
+        throw new Error("Error al obtener el producto principal para comparar");
+    }
+
+    const firstCategoryId = firstProduct.toJSON().categoryId;
+    
+    const allSameCategory = products.every(product => product.toJSON().categoryId === firstCategoryId);
+
+    if (!allSameCategory) {
+        throw new Error("No se pueden comparar productos de distintas categorías");
+    }
+
+    return products;
+};
+
+// 5. Sincronizar productos desde scraper de todas las paginas
+export const syncProductsFromScraper = async (
+    params: ScraperSyncParams
+): Promise<Boolean> => {
+    try {
+        const scrapedProducts = await fetchScrapedProducts(params);
+    
+        await processProductScrapedDate(scrapedProducts);
+
+        return true;
+    } catch (error) {
+        throw new ConflictError(`Error sincronizando productos desde scraper: ${error instanceof Error ? error.message : 'Error desconocido'}`, {
+            resource: "Product",
+            action: "syncProductsFromScraper",
+        });
+    }
+
+};
+
+// 6. Sincronizar productos desde scraper de MercadoLibre
+export const syncProductsFromScraperByMercadoLibre = async (
+    payload: ScraperSyncParams
+) => {
+    try {
+        const scrapedProducts = await fetchScrapedProductsByMercadoLibre(payload);
+
+        console.log(`[ProductService] Scraped ${scrapedProducts.length} products from MercadoLibre for query: "${payload.query}"`);
+
+        await processProductScrapedDate(scrapedProducts);
+
+        return true;
+    } catch (error) {
+        throw new ConflictError(`Error sincronizando productos desde scraper de MercadoLibre: ${error instanceof Error ? error.message : 'Error desconocido'}`, {
+            resource: "Product",
+            action: "syncProductsFromScraperByMercadoLibre",
+        });
+    }
+};
+
+const fetchScrapedProductsByCompraGamer = async (params: ScraperSyncParams): Promise<ScrapedProductInput[]> => {
+    const query = normalizeText(params.query);
+    if (!query) {
+        throw new ValidationError(
+            'Datos inválidos para sincronizar scraping',
+            [{ field: 'query', message: 'El campo query es obligatorio' }],
+            { resource: 'product', action: 'syncProductsFromScraperByCompraGamer' }
+        );
+    }
+
+    const scraperBaseUrl = config.services.scraper.url.replace(/\/+$/, '');
+    // Asumimos que crearás un prefijo /compragamer en tu microservicio Python
+    const endpoint = `${scraperBaseUrl}/compragamer/scrape-by-query`;
+
+    try {
+        const response = await axios.get(endpoint, {
+            params: {
+                q: query,
+                max_pages: params.maxPages ?? 1
+            },
+            timeout: SCRAPER_TIMEOUT_MS // Recordá que subimos esto a 300000 (5 mins)
+        });
+
+        console.log(`[ProductService] Scraper CompraGamer response for query "${query}": recibidos ${response.data.length} items`);
+
+        if (!Array.isArray(response.data)) {
+            throw new ConflictError(`El microservicio de scraping no devolvió un array de productos`, {
+                resource: "Product",
+                action: "ScraperCompraGamer",
+            });
+        }
+
+        return response.data as ScrapedProductInput[];
+    } catch (error) {
+        throw new ConflictError(`No se pudo consumir el microservicio de scraping de CompraGamer`, {
+            resource: "Product",
+            action: "ScraperCompraGamer",
+        });
+    }
+};
+
+export const syncProductsFromScraperByCompraGamer = async (
+    payload: ScraperSyncParams
+) => {
+    try {
+        const scrapedProducts = await fetchScrapedProductsByCompraGamer(payload);
+
+        console.log(`[ProductService] Scraped ${scrapedProducts.length} products from CompraGamer for query: "${payload.query}"`);
+
+        // Reutilizamos tu excelente función processProductScrapedDate para normalizar y guardar en DB
+        await processProductScrapedDate(scrapedProducts);
+
+        return true;
+    } catch (error) {
+        throw new ConflictError(`Error sincronizando productos desde scraper de CompraGamer: ${error instanceof Error ? error.message : 'Error desconocido'}`, {
+            resource: "Product",
+            action: "syncProductsFromScraperByCompraGamer",
+        });
+    }
+};
+
+const fetchScrapedProductsByVenex = async (params: ScraperSyncParams): Promise<ScrapedProductInput[]> => {
+    const query = normalizeText(params.query);
+    if (!query) {
+        throw new ValidationError(
+            'Datos inválidos para sincronizar scraping',
+            [{ field: 'query', message: 'El campo query es obligatorio' }],
+            { resource: 'product', action: 'syncProductsFromScraperByVenex' }
+        );
+    }
+
+    const scraperBaseUrl = config.services.scraper.url.replace(/\/+$/, '');
+    const endpoint = `${scraperBaseUrl}/venex/scrape-by-query`;
+
+    try {
+        const response = await axios.get(endpoint, {
+            params: {
+                q: query,
+                max_pages: params.maxPages ?? 1
+            },
+            timeout: SCRAPER_TIMEOUT_MS // Recordá que esto debe estar en 300000ms (5 min)
+        });
+
+        console.log(`[ProductService] Scraper Venex response for query "${query}": recibidos ${response.data.length} items`);
+
+        if (!Array.isArray(response.data)) {
+            throw new ConflictError(`El microservicio de scraping no devolvió un array de productos`, {
+                resource: "Product",
+                action: "ScraperVenex",
+            });
+        }
+
+        return response.data as ScrapedProductInput[];
+    } catch (error) {
+        throw new ConflictError(`No se pudo consumir el microservicio de scraping de Venex`, {
+            resource: "Product",
+            action: "ScraperVenex",
+        });
+    }
+};
+
+// 2. Exportación de la sincronización para el controlador
+export const syncProductsFromScraperByVenex = async (
+    payload: ScraperSyncParams
+) => {
+    try {
+        const scrapedProducts = await fetchScrapedProductsByVenex(payload);
+
+        console.log(`[ProductService] Scraped ${scrapedProducts.length} products from Venex for query: "${payload.query}"`);
+
+        // Reutilizamos tu función de procesamiento y normalización
+        await processProductScrapedDate(scrapedProducts);
+
+        return true;
+    } catch (error) {
+        throw new ConflictError(`Error sincronizando productos desde scraper de Venex: ${error instanceof Error ? error.message : 'Error desconocido'}`, {
+            resource: "Product",
+            action: "syncProductsFromScraperByVenex",
+        });
+    }
+};
+
+
+const fetchScrapedProductsByFravega = async (params: ScraperSyncParams): Promise<ScrapedProductInput[]> => {
+    const query = normalizeText(params.query);
+    if (!query) {
+        throw new ValidationError(
+            'Datos inválidos para sincronizar scraping',
+            [{ field: 'query', message: 'El campo query es obligatorio' }],
+            { resource: 'product', action: 'syncProductsFromScraperByFravega' }
+        );
+    }
+
+    const scraperBaseUrl = config.services.scraper.url.replace(/\/+$/, '');
+    const endpoint = `${scraperBaseUrl}/fravega/scrape-by-query`;
+
+    try {
+        const response = await axios.get(endpoint, {
+            params: {
+                q: query,
+                max_pages: params.maxPages ?? 1
+            },
+            timeout: SCRAPER_TIMEOUT_MS // Recordá que esto debe estar en 300000ms (5 min)
+        });
+
+        console.log(`[ProductService] Scraper Fravega response for query "${query}": recibidos ${response.data.length} items`);
+
+        if (!Array.isArray(response.data)) {
+            throw new ConflictError(`El microservicio de scraping no devolvió un array de productos`, {
+                resource: "Product",
+                action: "ScraperFravega",
+            });
+        }
+
+        return response.data as ScrapedProductInput[];
+    } catch (error) {
+        throw new ConflictError(`No se pudo consumir el microservicio de scraping de Fravega`, {
+            resource: "Product",
+            action: "ScraperFravega",
+        });
+    }
+};
+
+export const syncProductsFromScraperByFravega = async (
+    payload: ScraperSyncParams
+) => {
+    try {
+        const scrapedProducts = await fetchScrapedProductsByFravega(payload);
+
+        console.log(`[ProductService] Scraped ${scrapedProducts.length} products from Fravega for query: "${payload.query}"`);
+
+        // Reutilizamos tu función de procesamiento y normalización
+        await processProductScrapedDate(scrapedProducts);
+
+        return true;
+    } catch (error) {
+        throw new ConflictError(`Error sincronizando productos desde scraper de Fravega: ${error instanceof Error ? error.message : 'Error desconocido'}`, {
+            resource: "Product",
+            action: "syncProductsFromScraperByFravega",
+        });
+    }
+};
+

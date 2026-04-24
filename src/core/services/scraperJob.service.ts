@@ -6,7 +6,6 @@ interface ScraperJobConfig {
   enabled: boolean;
   query: string;
   maxPages: number;
-  includeDetailsMl: boolean;
   intervalMs: number;
   runOnStart: boolean;
 }
@@ -33,8 +32,7 @@ const parsePositiveInt = (value: string | undefined, defaultValue: number): numb
   return parsed;
 };
 
-const getConfig = (): ScraperJobConfig => {
-  const query = (process.env.SCRAPER_JOB_QUERY ?? 'notebook').trim();
+const getConfig = (query: string): ScraperJobConfig => {
   const maxPages = parsePositiveInt(process.env.SCRAPER_JOB_MAX_PAGES, 1);
   const intervalMinutes = parsePositiveInt(
     process.env.SCRAPER_JOB_INTERVAL_MINUTES,
@@ -43,9 +41,8 @@ const getConfig = (): ScraperJobConfig => {
 
   return {
     enabled: parseBoolean(process.env.SCRAPER_JOB_ENABLED, true),
-    query: query || 'notebook',
+    query: query,
     maxPages,
-    includeDetailsMl: parseBoolean(process.env.SCRAPER_JOB_INCLUDE_DETAILS_ML, false),
     intervalMs: Math.max(intervalMinutes * 60_000, MIN_INTERVAL_MS),
     runOnStart: parseBoolean(process.env.SCRAPER_JOB_RUN_ON_START, true),
   };
@@ -56,11 +53,11 @@ class ScraperJobService {
   private isRunning = false;
   private readonly config: ScraperJobConfig;
 
-  constructor() {
-    this.config = getConfig();
+  constructor(query: string) {
+    this.config = getConfig(query);
   }
 
-  public start(): void {
+  public start(delayMs: number = 0): void {
     if (!this.config.enabled) {
       console.log('[ScraperJob] Disabled by SCRAPER_JOB_ENABLED');
       return;
@@ -72,9 +69,12 @@ class ScraperJobService {
     }
 
     if (this.config.runOnStart) {
-      void this.run('startup');
+      setTimeout(() => {
+        void this.run('startup');
+      }, delayMs);
     }
 
+    // Programar las siguientes ejecuciones
     this.timer = setInterval(() => {
       void this.run('interval');
     }, this.config.intervalMs);
@@ -89,45 +89,63 @@ class ScraperJobService {
 
     clearInterval(this.timer);
     this.timer = null;
-    console.log('[ScraperJob] Stopped');
+    console.log(`[ScraperJob] Stopped "${this.config.query}"`);
   }
 
   private async run(trigger: JobTrigger): Promise<void> {
-    if (this.isRunning) {
-      console.log(`[ScraperJob] Skip ${trigger} run because previous run is still in progress`);
-      return;
-    }
+      if (this.isRunning) {
+        console.log(`[ScraperJob] Skip ${trigger} "${this.config.query}" - previous run in progress`);
+        return;
+      }
 
-    this.isRunning = true;
-    const startedAt = Date.now();
+      this.isRunning = true;
+      const startedAt = Date.now();
 
-    try {
-      console.log(`[ScraperJob] Running (${trigger})...`);
-
-      const result = await syncProductsFromScraper({
-        query: this.config.query,
-        maxPages: this.config.maxPages,
-        includeDetailsMl: this.config.includeDetailsMl,
-      });
-
-      const durationMs = Date.now() - startedAt;
-      console.log(
-        `[ScraperJob] Done in ${durationMs}ms. fetched=${result.totalFetched} processed=${result.processed} createdProducts=${result.createdProducts} updatedProducts=${result.updatedProducts} createdListings=${result.createdListings} updatedListings=${result.updatedListings} errors=${result.errors.length}`,
-      );
-    } catch (error) {
-      console.error('[ScraperJob] Run failed:', error);
-    } finally {
-      this.isRunning = false;
-    }
+      try {
+        console.log(`[ScraperJob] Running (${trigger}) for "${this.config.query}"...`);
+        const result = await syncProductsFromScraper({
+          query: this.config.query,
+          maxPages: this.config.maxPages
+        });
+        const durationMs = Date.now() - startedAt;
+        console.log(`[ScraperJob] Done "${this.config.query}" in ${durationMs}ms.`);
+      } catch (error) {
+        console.error(`[ScraperJob] Failed for "${this.config.query}":`, error);
+      } finally {
+        this.isRunning = false;
+      }
   }
 }
 
-export const scraperJobService = new ScraperJobService();
+// Un Manager para controlar múltiples instancias
+class ScraperJobManager {
+  private jobs: Map<string, ScraperJobService> = new Map();
 
-export const startScraperJob = (): void => {
-  scraperJobService.start();
+  public startJob(query: string, delayMs: number = 0): void {
+    if (this.jobs.has(query)) {
+      console.warn(`[ScraperManager] Job for "${query}" is already managed.`);
+      return;
+    }
+    const job = new ScraperJobService(query);
+    this.jobs.set(query, job);
+    job.start(delayMs);
+  }
+
+  public stopAllJobs(): void {
+    for (const job of this.jobs.values()) {
+      job.stop();
+    }
+    this.jobs.clear();
+    console.log('[ScraperManager] All jobs stopped.');
+  }
+}
+
+export const jobManager = new ScraperJobManager();
+
+export const startScraperJob = (query: string, delayMs: number = 0): void => {
+  jobManager.startJob(query, delayMs);
 };
 
 export const stopScraperJob = (): void => {
-  scraperJobService.stop();
+  jobManager.stopAllJobs();
 };

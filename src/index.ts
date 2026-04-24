@@ -24,7 +24,14 @@ const startServer = async () => {
       console.log(`🚀 Server is running on port ${PORT}`);
       console.log(`🌍 Environment: ${config.env}`);
       console.log(`📡 Gateway ready to proxy requests to microservices`);
-      startScraperJob();
+
+      let delay = 0;
+      const queries = ["Notebook", "Tablet", "Mouse", "Placa de video", "Monitor", "Procesador", "Auriculares", "Memoria RAM"];
+
+      queries.forEach((query) => {
+        startScraperJob(query, delay);
+        delay += 45000; // Escalona el inicio inicial por 10 segundos entre cada uno
+      });
     });
   } catch (error) {
     console.error("❌ Unable to start server:", error);
