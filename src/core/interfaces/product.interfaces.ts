@@ -21,6 +21,7 @@ export interface ScrapedFeatureInput {
 export interface ScrapedProductInput {
     name: string;
     urlAccess?: string;
+    imageUrl?: string | null;
     price: number;
     regularPrice?: number | null;
     seller?: string | null;

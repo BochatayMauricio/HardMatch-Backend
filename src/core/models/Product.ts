@@ -6,6 +6,7 @@ export interface ProductAttributes {
   id?: number;
   name: string;
   urlAccess?: string;
+  imageUrl?: string;
   price: number;
   brandId: number;
   categoryId: number;
@@ -23,6 +24,7 @@ export class Product
   declare id: number;
   declare name: string;
   declare urlAccess: string;
+  declare imageUrl: string;
   declare price: number;
   declare brandId: number;
   declare categoryId: number;
@@ -44,6 +46,11 @@ Product.init(
     urlAccess: {
       type: DataTypes.STRING(500),
       allowNull: true,
+    },
+    imageUrl: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      field: "image_url",
     },
     price: {
       type: DataTypes.DECIMAL(10, 2),

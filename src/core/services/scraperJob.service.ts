@@ -1,17 +1,17 @@
 import { syncProductsFromScraper } from './product.service.js';
 
-type JobTrigger = 'startup' | 'interval';
+type JobTrigger = 'startup' | 'scheduled';
 
 interface ScraperJobConfig {
   enabled: boolean;
   query: string;
   maxPages: number;
-  intervalMs: number;
-  runOnStart: boolean;
+  runAtHour: number;
+  runEveryDays: number;
 }
 
-const DEFAULT_INTERVAL_MINUTES = 60;
-const MIN_INTERVAL_MS = 60000;
+const DEFAULT_RUN_HOUR = 3;
+const DEFAULT_RUN_EVERY_DAYS = 3;
 
 const parseBoolean = (value: string | undefined, defaultValue: boolean): boolean => {
   if (value === undefined) return defaultValue;
@@ -32,25 +32,48 @@ const parsePositiveInt = (value: string | undefined, defaultValue: number): numb
   return parsed;
 };
 
+const parseHour = (value: string | undefined, defaultValue: number): number => {
+  if (!value) return defaultValue;
+
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 23) return defaultValue;
+
+  return parsed;
+};
+
+const getNextRunAt = (from: Date, runAtHour: number, runEveryDays: number): Date => {
+  const nextRunAt = new Date(from);
+  nextRunAt.setSeconds(0, 0);
+  nextRunAt.setHours(runAtHour, 0, 0, 0);
+
+  if (nextRunAt <= from) {
+    nextRunAt.setDate(nextRunAt.getDate() + runEveryDays);
+  }
+
+  return nextRunAt;
+};
+
 const getConfig = (query: string): ScraperJobConfig => {
   const maxPages = parsePositiveInt(process.env.SCRAPER_JOB_MAX_PAGES, 1);
-  const intervalMinutes = parsePositiveInt(
-    process.env.SCRAPER_JOB_INTERVAL_MINUTES,
-    DEFAULT_INTERVAL_MINUTES,
+  const runAtHour = parseHour(process.env.SCRAPER_JOB_RUN_HOUR, DEFAULT_RUN_HOUR);
+  const runEveryDays = parsePositiveInt(
+    process.env.SCRAPER_JOB_RUN_EVERY_DAYS,
+    DEFAULT_RUN_EVERY_DAYS,
   );
 
   return {
     enabled: parseBoolean(process.env.SCRAPER_JOB_ENABLED, true),
     query: query,
     maxPages,
-    intervalMs: Math.max(intervalMinutes * 60_000, MIN_INTERVAL_MS),
-    runOnStart: parseBoolean(process.env.SCRAPER_JOB_RUN_ON_START, true),
+    runAtHour,
+    runEveryDays,
   };
 };
 
 class ScraperJobService {
   private timer: NodeJS.Timeout | null = null;
   private isRunning = false;
+  private nextRunAt: Date | null = null;
   private readonly config: ScraperJobConfig;
 
   constructor(query: string) {
@@ -68,52 +91,86 @@ class ScraperJobService {
       return;
     }
 
-    if (this.config.runOnStart) {
-      setTimeout(() => {
-        void this.run('startup');
+    const startScheduler = (): void => {
+      const from = new Date();
+      this.nextRunAt = getNextRunAt(from, this.config.runAtHour, this.config.runEveryDays);
+      const scheduleDelayMs = Math.max(this.nextRunAt.getTime() - from.getTime(), 0);
+
+      this.timer = setTimeout(() => {
+        void this.run('scheduled');
+      }, scheduleDelayMs);
+
+      console.log(
+        `[ScraperJob] Scheduled "${this.config.query}" for ${this.nextRunAt.toLocaleString()} (every ${this.config.runEveryDays} days at ${String(this.config.runAtHour).padStart(2, '0')}:00)`,
+      );
+    };
+
+    if (delayMs > 0) {
+      this.timer = setTimeout(() => {
+        this.timer = null;
+        startScheduler();
       }, delayMs);
+    } else {
+      startScheduler();
     }
 
-    // Programar las siguientes ejecuciones
-    this.timer = setInterval(() => {
-      void this.run('interval');
-    }, this.config.intervalMs);
-
     console.log(
-      `[ScraperJob] Started. query="${this.config.query}" interval=${Math.floor(this.config.intervalMs / 60000)}m maxPages=${this.config.maxPages}`,
+      `[ScraperJob] Started. query="${this.config.query}" maxPages=${this.config.maxPages}`,
     );
   }
 
   public stop(): void {
     if (!this.timer) return;
 
-    clearInterval(this.timer);
+    clearTimeout(this.timer);
     this.timer = null;
+    this.nextRunAt = null;
     console.log(`[ScraperJob] Stopped "${this.config.query}"`);
   }
 
   private async run(trigger: JobTrigger): Promise<void> {
-      if (this.isRunning) {
-        console.log(`[ScraperJob] Skip ${trigger} "${this.config.query}" - previous run in progress`);
-        return;
-      }
+    if (this.isRunning) {
+      console.log(`[ScraperJob] Skip ${trigger} "${this.config.query}" - previous run in progress`);
+      return;
+    }
 
-      this.isRunning = true;
-      const startedAt = Date.now();
+    if (this.timer) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
 
-      try {
-        console.log(`[ScraperJob] Running (${trigger}) for "${this.config.query}"...`);
-        const result = await syncProductsFromScraper({
-          query: this.config.query,
-          maxPages: this.config.maxPages
-        });
-        const durationMs = Date.now() - startedAt;
-        console.log(`[ScraperJob] Done "${this.config.query}" in ${durationMs}ms.`);
-      } catch (error) {
-        console.error(`[ScraperJob] Failed for "${this.config.query}":`, error);
-      } finally {
-        this.isRunning = false;
+    this.isRunning = true;
+    const startedAt = Date.now();
+
+    try {
+      console.log(`[ScraperJob] Running (${trigger}) for "${this.config.query}"...`);
+      await syncProductsFromScraper({
+        query: this.config.query,
+        maxPages: this.config.maxPages,
+      });
+      const durationMs = Date.now() - startedAt;
+      console.log(`[ScraperJob] Done "${this.config.query}" in ${durationMs}ms.`);
+    } catch (error) {
+      console.error(`[ScraperJob] Failed for "${this.config.query}":`, error);
+    } finally {
+      this.isRunning = false;
+
+      if (this.nextRunAt) {
+        const nextRunAt = new Date(this.nextRunAt);
+        nextRunAt.setDate(nextRunAt.getDate() + this.config.runEveryDays);
+        const now = new Date();
+        const scheduleDelayMs = Math.max(nextRunAt.getTime() - now.getTime(), 0);
+
+        this.nextRunAt = nextRunAt;
+        this.timer = setTimeout(() => {
+          void this.run('scheduled');
+        }, scheduleDelayMs);
+
+        console.log(
+          `[ScraperJob] Rescheduled "${this.config.query}" for ${this.nextRunAt.toLocaleString()} (every ${this.config.runEveryDays} days)`,
+        );
       }
+    }
   }
 }
 
@@ -142,8 +199,8 @@ class ScraperJobManager {
 
 export const jobManager = new ScraperJobManager();
 
-export const startScraperJob = (query: string, delayMs: number = 0): void => {
-  jobManager.startJob(query, delayMs);
+export const startScraperJob = (query: string): void => {
+  jobManager.startJob(query);
 };
 
 export const stopScraperJob = (): void => {

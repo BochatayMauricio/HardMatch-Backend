@@ -446,6 +446,7 @@ const processProductScrapedDate = async (scrapedProducts: ScrapedProductInput[])
                 if (categoryInfo.created) itemCounters.createdCategories += 1;
 
                 const normalizedUrl = normalizeAndTruncate(scrapedProduct.urlAccess, 500);
+                const normalizedImageUrl = normalizeAndTruncate(scrapedProduct.imageUrl, 2000);
 
                 console.log(`[ScraperJob] Processing product: ${productName}`);
 
@@ -467,6 +468,10 @@ const processProductScrapedDate = async (scrapedProducts: ScrapedProductInput[])
                         updatePayload.urlAccess = normalizedUrl;
                     }
 
+                    if (normalizedImageUrl) {
+                        updatePayload.imageUrl = normalizedImageUrl;
+                    }
+
                     await existingProduct.update(updatePayload, { transaction });
                     productId = existingProduct.id;
                     itemCounters.updatedProducts += 1;
@@ -481,6 +486,10 @@ const processProductScrapedDate = async (scrapedProducts: ScrapedProductInput[])
 
                     if (normalizedUrl) {
                         productPayload.urlAccess = normalizedUrl;
+                    }
+
+                    if (normalizedImageUrl) {
+                        productPayload.imageUrl = normalizedImageUrl;
                     }
 
                     const createdProduct = await Product.create(productPayload, { transaction });
