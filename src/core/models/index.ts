@@ -17,6 +17,7 @@ import { AuditLog } from "./Audit_logs.js";
 import { Store } from "./Store.js";
 import { UserPreference } from "./UserPreference.js";
 import { Notification } from "./Notification.js";
+import { ListingClick } from "../interfaces/listingClick.js";
 
 // ==================== ASOCIACIONES ====================
 
@@ -90,6 +91,12 @@ UserPreference.belongsTo(User, { foreignKey: "userId" });
 
 User.hasMany(Notification, { foreignKey: 'userId' });
 Notification.belongsTo(User, { foreignKey: 'userId' });
+
+ListingClick.belongsTo(Listing, { foreignKey: 'listingId', as: 'listing' });
+Listing.hasMany(ListingClick, { foreignKey: 'listingId', as: 'clicks' });
+
+ListingClick.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+User.hasMany(ListingClick, { foreignKey: 'userId', as: 'listingClicks' });
 
 // ==================== EXPORTACIONES ====================
 

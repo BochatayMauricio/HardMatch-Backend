@@ -4,7 +4,8 @@ import {
   getStoreById, 
   createStore, 
   updateStore, 
-  deleteStore 
+  deleteStore, 
+  getStoreProducts
 } from '../controllers/store.controller.js';
 import { authenticate } from '../middlewares/auth.middleware.js';
 
@@ -15,6 +16,7 @@ router.get('/:id', getStoreById);
 router.post('/',authenticate, createStore);
 router.put('/:id', authenticate, updateStore);
 router.delete('/:id',authenticate, deleteStore);
+router.get('/:id/products', getStoreProducts);
 
 
 export default router;

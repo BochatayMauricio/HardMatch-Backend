@@ -86,7 +86,7 @@ export const getProductById = async (id: number) => {
             { 
                 model: Listing, 
                 as: 'listings', 
-                attributes: ['priceTotal', 'urlAccess', 'percentOff'],
+                attributes: ['id','priceTotal', 'urlAccess', 'percentOff'],
                 where: { isActive: true },
                 required: false,
                 // 💡 LA MAGIA DE LA TIENDA: Hacemos un include anidado
