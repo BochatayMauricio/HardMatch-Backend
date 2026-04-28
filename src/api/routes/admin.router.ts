@@ -58,10 +58,31 @@ router.get(
 );
 
 router.get(
-  "/reports/top-recommendations",
+  "/reports/top-recommendations", // Ver
   authenticate,
   adminOnly,
   reportController.getTopRecommendations.bind(reportController),
+);
+
+router.get(
+  "/reports/marketplace-status",
+  authenticate,
+  adminOnly,
+  reportController.getMarketplaceStatuses.bind(reportController),
+);
+
+router.get(
+  "/reports/scraper-stats",
+  authenticate,
+  adminOnly,
+  reportController.getScraperStats.bind(reportController),
+);
+
+router.get(
+  "/reports/weekly-traffic",
+  authenticate,
+  adminOnly,
+  reportController.getWeeklyTraffic.bind(reportController),
 );
 
 export default router;

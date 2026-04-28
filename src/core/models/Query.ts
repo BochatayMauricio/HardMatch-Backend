@@ -4,8 +4,8 @@ import { sequelize } from "../../config/database.js";
 
 export interface QueryAttributes {
   id?: number;
-  idUser: number;
-  idProduct?: number;
+  idUser?: number | null;
+  idProduct?: number | null;
   search: string;
   isActive?: boolean;
   createdAt?: Date;
@@ -14,8 +14,8 @@ export interface QueryAttributes {
 
 export class Query extends Model<QueryAttributes> implements QueryAttributes {
   public id!: number;
-  public idUser!: number;
-  public idProduct!: number;
+  public idUser?: number;
+  public idProduct?: number;
   public search!: string;
   public isActive!: boolean;
   public readonly createdAt!: Date;
@@ -31,7 +31,7 @@ Query.init(
     },
     idUser: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       references: {
         model: "users",
         key: "id",

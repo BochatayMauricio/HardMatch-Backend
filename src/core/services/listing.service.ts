@@ -1,3 +1,4 @@
+import { ListingClick } from '../interfaces/listingClick.js';
 import { Listing, type ListingAttributes } from '../models/Listing.js';
 import { Price } from '../models/Price.js';
 import { processListingMatch } from './matching.service.js';
@@ -29,4 +30,14 @@ export const getPriceHistory = async (productId: number) => {
         where: { idProduct: productId },
         order: [['createdAt', 'DESC']]
     });
+};
+
+export const registerClick = async (listingId: number, userId?: number) => {
+    // Si userId existe, agrega la propiedad; si es undefined, la omite por completo.
+    const newClick = await ListingClick.create({
+        listingId,
+        ...(userId !== undefined && { userId }) 
+    });
+    
+    return newClick;
 };
