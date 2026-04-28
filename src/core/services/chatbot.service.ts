@@ -6,13 +6,26 @@ import { Op } from 'sequelize';
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 const buscarEnBaseDeDatos = async (categoriaName: string, presupuestoMaximo?: number) => {
-    const listingWhere: any = { isActive: true };
+    const productWhere: any = { isActive: true };
+    
     if (presupuestoMaximo) {
-        listingWhere.priceTotal = { [Op.lte]: presupuestoMaximo };
+        productWhere.price = { [Op.lte]: presupuestoMaximo };
+    }
+
+    if (categoriaName.toLowerCase().includes('notebook') || categoriaName.toLowerCase().includes('pc')) {
+        productWhere.name = {
+            [Op.and]: [
+                { [Op.notLike]: '%memoria%' },
+                { [Op.notLike]: '%ram%' },
+                { [Op.notLike]: '%funda%' },
+                { [Op.notLike]: '%soporte%' },
+                { [Op.notLike]: '%pad%' }
+            ]
+        };
     }
 
     return await Product.findAll({
-        where: { isActive: true },
+        where: productWhere,
         attributes: ['id', 'name', 'price'],
         include: [
             {
@@ -23,9 +36,9 @@ const buscarEnBaseDeDatos = async (categoriaName: string, presupuestoMaximo?: nu
             },
             {
                 model: Listing,
-            as: 'listings',
-            where: { isActive: true },
-            attributes: ['price_total', 'percent_off', 'urlAccess']
+                as: 'listings',
+                where: { isActive: true },
+                attributes: ['price_total', 'percent_off', 'urlAccess']
             },
             {
                 model: Feature,
@@ -34,7 +47,8 @@ const buscarEnBaseDeDatos = async (categoriaName: string, presupuestoMaximo?: nu
                 through: { attributes: [] }
             }
         ],
-        limit: 3,
+        order: [['price', 'DESC']], 
+        limit: 5,
         raw: true,
         nest: true
     });
@@ -64,13 +78,16 @@ export const procesarMensajeChat = async (mensajeUsuario: string, historial: any
         2. LIMITACIÓN DE DATOS: Basa tus recomendaciones EXCLUSIVAMENTE en la información exacta que te devuelven tus herramientas de búsqueda en la base de datos.
         3. MANEJO DE PRECIOS: Si la herramienta no te devuelve un precio o un descuento específico para un producto, NO LO INVENTES. En su lugar, responde: "Actualmente no tengo el precio exacto de este producto a mano".
         4. PRODUCTOS INEXISTENTES: Si el usuario pide algo que no encuentras en la base de datos, simplemente dile que por el momento no contamos con ese tipo de componentes.
+        5. PERSISTENCIA DE DATOS: Tienes acceso a los IDs de los productos a través de las respuestas de las herramientas. Aunque no los menciones explícitamente al usuario, úsalos internamente cuando necesites ejecutar 'guardar_recomendacion'.
 
         CONOCIMIENTO TÉCNICO PARA EXPLICAR:
         - RAM DDR5: Explica que es la última generación, más rápida y eficiente que DDR4. Analogía: 'Es una autopista con más carriles'.
         - SSD NVMe: Explica que es muchísimo más rápido que un disco rígido común.
         - Nits: Explica que es la potencia del brillo; a más nits, mejor se ve bajo el sol.
 
-        Si un usuario te pregunta por qué le recomiendas algo, usa estos datos para convencerlo técnicamente, pero siempre respetando el hardware real.`;
+        Si un usuario te pregunta por qué le recomiendas algo, usa estos datos para convencerlo técnicamente, pero siempre respetando el hardware real.
+        
+        REGLA DE ACCIÓN: Si el usuario confirma que le interesa un producto o pide guardarlo, DEBES ejecutar la función 'guardar_recomendacion' inmediatamente usando el id_producto que recibiste de la herramienta 'buscar_productos'. No solo confirmes con texto, ¡ejecuta la herramienta!`;
     if (userId) {
         herramientasDisponibles.push(guardarRecomendacionTool, obtenerHistorialTool);
         systemPrompt += "El usuario ESTÁ logueado. Tienes permiso para consultar su historial de recomendaciones previas y guardar nuevas sugerencias.";
@@ -131,6 +148,36 @@ export const procesarMensajeChat = async (mensajeUsuario: string, historial: any
                     return textoFinal && textoFinal.trim() !== "" 
                         ? textoFinal 
                         : "He encontrado productos, pero tuve un problema al procesar la respuesta. ¿Puedes intentar preguntarme de nuevo?";
+                }
+                
+                case "guardar_recomendacion": {
+                    // 1. Verificamos que el usuario esté logueado
+                    if (!userId) {
+                        return "Inicia sesión para poder guardar esta recomendación.";
+                    }
+
+                    // 2. Extraemos los argumentos que nos manda Gemini (id del producto y el por qué)
+                    const args = llamada.args as { id_producto: number, motivo: string };
+
+                    // 3. Lo guardamos en MySQL
+                    await Recommendation.create({
+                        idUser: userId,
+                        idProduct: args.id_producto,
+                        score: 95, // Le ponemos un puntaje alto porque el usuario lo eligió
+                        explanationText: args.motivo || "Elegido en el chat con Scrapy.",
+                        expirationAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Expira en 7 días
+                        isActive: true
+                    });
+
+                    // 4. Le avisamos a Gemini que la operación fue un éxito para que siga hablando
+                    const resultadoFinal = await chat.sendMessage([{
+                        functionResponse: {
+                            name: 'guardar_recomendacion',
+                            response: { success: true, message: "Guardado en MySQL exitosamente." }
+                        }
+                    }]);
+
+                    return resultadoFinal.response.text();
                 }
 
                 case "obtener_historial": {
