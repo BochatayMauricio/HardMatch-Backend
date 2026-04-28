@@ -101,6 +101,7 @@ export const syncFromScraper = async (
     try {
         const queries: string[] = req.body.queries;
         const maxPages: number = req.body.maxPages || 1;
+        const includeDetailsMl: boolean = req.body.includeDetailsMl ?? true;
 
         // Validación inicial
         if (!queries || !Array.isArray(queries) || queries.length === 0) {
@@ -120,7 +121,11 @@ export const syncFromScraper = async (
             
             for (const query of queries) {
                 try {
-                    const payload: ScraperSyncParams = { query, maxPages };
+                    const payload: ScraperSyncParams = {
+                        query,
+                        maxPages,
+                        includeDetailsMl
+                    };
                     console.log(`[ScraperBackground] Procesando general: "${query}"`);
                     
                     // Llamamos a tu servicio original

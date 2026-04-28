@@ -178,7 +178,8 @@ export const compareProductsSchema = z.object({
 
 export const syncScrapedProductsSchema = z.object({
   queries: z.array(z.string().min(2, "Debes enviar un término de búsqueda").max(120)).min(1, "Debes enviar al menos un término de búsqueda"),
-  maxPages: z.number().int().min(1).max(10).optional()
+  maxPages: z.number().int().min(1).max(10).optional(),
+  includeDetailsMl: z.boolean().optional()
 });
 
 // En tu archivo de esquemas (ej. dtoSchemas.users)

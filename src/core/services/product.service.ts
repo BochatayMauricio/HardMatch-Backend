@@ -100,12 +100,18 @@ const fetchScrapedProducts = async (params: ScraperSyncParams): Promise<ScrapedP
     const scraperBaseUrl = config.services.scraper.url.replace(/\/+$/, '');
     const endpoint = `${scraperBaseUrl}/all-stores/scrape-by-query`;
 
+    const requestParams: Record<string, unknown> = {
+        q: query,
+        max_pages: params.maxPages ?? 1
+    };
+
+    if (params.includeDetailsMl !== undefined) {
+        requestParams.include_details_ml = params.includeDetailsMl;
+    }
+
     try {
         const response = await axios.get(endpoint, {
-            params: {
-                q: query,
-                max_pages: params.maxPages ?? 1
-            },
+            params: requestParams,
             timeout: SCRAPER_TIMEOUT_MS
         });
 
@@ -501,7 +507,13 @@ const processProductScrapedDate = async (scrapedProducts: ScrapedProductInput[])
                     ? scrapedProduct.features
                     : [];
 
-                console.log(`[ScraperJob] Found ${features.toString()} features for product: ${productName}`);
+                const featurePreview = features
+                    .slice(0, 3)
+                    .map((feature) => ({ keyword: feature.keyword, value: feature.value }));
+
+                console.log(
+                    `[ScraperJob] Found ${features.length} features for product: ${productName}. Preview: ${JSON.stringify(featurePreview)}`
+                );
 
                 const seenFeatureSignatures = new Set<string>();
                 for (const featureInput of features) {

@@ -24,7 +24,6 @@ const router = Router();
 
 router.get('/', getAll);
 router.post('/compare', validateSchema(compareProductsSchema), compare);
-router.post('/sync-from-scraper', authenticate, validateSchema(syncScrapedProductsSchema), syncFromScraper);
 router.get('/:id', getById);
 
 router.post('/',authenticate, validateSchema(createProductSchema), create);

@@ -33,6 +33,7 @@ export interface ScrapedProductInput {
 export interface ScraperSyncParams {
     query: string;
     maxPages?: number;
+    includeDetailsMl?: boolean;
 }
 
 export interface ScraperSyncError {
