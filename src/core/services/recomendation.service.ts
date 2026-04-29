@@ -1,89 +1,154 @@
-import { Product, Favorite, Recommendation, User } from '../models/index.js';
+import { User, Favorite, UserPreference, Recommendation, Product, Category, Brand } from '../models/index.js'; 
+import { UserPreferenceAttributes } from '../models/UserPreference.js'
 import { Op } from 'sequelize';
 
 export class RecommendationService {
   
   async generateAutomatedRecommendations() {
-    // Agregamos raw: true
     const users = await User.findAll({ where: { isActive: true }, raw: true });
 
     for (const user of users) {
-      // 1. Buscamos los favoritos
-      const userFavorites = await Favorite.findAll({
-        where: { idUser: user.id },
-        attributes: ['idProduct'],
-        raw: true
-      });
+        const userFavorites = await Favorite.findAll({ where: { idUser: user.id }, attributes: ['idProduct'], raw: true });
 
-      if (userFavorites.length === 0) continue;
+        const pref = await UserPreference.findOne({ where: { userId: user.id }, raw: true }) as UserPreferenceAttributes | null;
 
-      // Filtramos por las dudas si algún favorito viene roto
-      const favoriteIds = userFavorites
-        .map((f: any) => f.idProduct)
-        .filter((id: any) => id !== undefined && id !== null);
+        const favoriteIds = userFavorites.map((f: any) => f.idProduct).filter(Boolean);
 
-      if (favoriteIds.length === 0) continue;
+        // 💡 1. REFRESH DINÁMICO: Eliminamos las recomendaciones viejas de este usuario.
+        // Esto asegura que si hoy le gusta Apple y mañana Samsung, las tarjetas viejas desaparezcan.
+        await Recommendation.destroy({
+            where: { idUser: user.id }
+        });
 
-      // 2. Obtenemos los categoryId únicos
-      const favoriteProducts = await Product.findAll({
-        where: { id: { [Op.in]: favoriteIds } },
-        attributes: ['categoryId'],
-        raw: true
-      });
+        let whereClause: any = {
+            isActive: true,
+            id: { [Op.notIn]: favoriteIds.length > 0 ? favoriteIds : [] } // No recomendamos lo que ya es favorito
+        };
 
-      const preferredCategoryIds = [...new Set(favoriteProducts.map((p: any) => p.categoryId))]
-        .filter(id => id !== undefined && id !== null);
+        let hasPreferenceFilters = false;
+        let score = 90;
+        let explanationText = 'Recomendado especialmente para vos según tus preferencias.';
 
-      if (preferredCategoryIds.length === 0) continue;
+        const includeOptions: any[] = [];
 
-      // 3. Buscamos productos sugeridos (con raw: true)
-      const suggestions = await Product.findAll({
-        where: {
-          categoryId: { [Op.in]: preferredCategoryIds },
-          id: { [Op.notIn]: favoriteIds }
-        },
-        limit: 15,
-        order: [['createdAt', 'DESC']],
-        raw: true
-      });
-
-      // 4. Creamos los registros en Recomendaciones
-      for (const prod of suggestions as any[]) {
-        const currentProductId = prod.id || prod.idProduct;
-
-        if (currentProductId === undefined) {
-          console.error("⚠️ [PELIGRO] Producto sin ID detectado en sugerencias:", prod);
-          continue; 
-        }
-
-        try {
-          // 4A. Buscamos a mano (mucho más seguro que findOrCreate)
-          const existingRec = await Recommendation.findOne({
-            where: { 
-              idUser: user.id, 
-              idProduct: currentProductId 
+        // 💡 2. FILTROS POR NOMBRE (Usando las relaciones con Category y Brand)
+        if (pref) {
+            // Filtro por Presupuesto (Este sí va directo en la tabla Product)
+            if (pref.minPrice != null || pref.maxPrice != null) {
+                whereClause.price = {};
+                if (pref.minPrice != null) {
+                    whereClause.price[Op.gte] = pref.minPrice;
+                    hasPreferenceFilters = true;
+                }
+                if (pref.maxPrice != null) {
+                    whereClause.price[Op.lte] = pref.maxPrice;
+                    hasPreferenceFilters = true;
+                }
             }
-          });
 
-          // 4B. Si no existe, lo creamos
-          if (!existingRec) {
-            await Recommendation.create({
-              idUser: user.id,                  
-              idProduct: currentProductId,      
-              score: 90, 
-              explanationText: `Te lo recomendamos por tu interés en productos similares.`,
-              expirationAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 
-              isActive: true
-            });
-          }
-        } catch (error: any) {
-          // Si choca, esto nos va a imprimir EXACTAMENTE qué columna tiene la restricción
-          const errorMsg = error.errors ? error.errors.message : error.message;
-          console.error(`🚨 Error al crear recomendación para User ${user.id} - Prod ${currentProductId}:`, errorMsg);
+            // Filtro por Categorías (Buscamos por el nombre en la tabla unida)
+            if (pref.selectedCategories) {
+                const categoryNames = pref.selectedCategories.split(',').filter(Boolean);
+                if (categoryNames.length > 0) {
+                    includeOptions.push({
+                        model: Category,
+                        as: 'category',
+                        where: { name: { [Op.in]: categoryNames } },
+                        required: true // INNER JOIN
+                    });
+                    hasPreferenceFilters = true;
+                }
+            }
+
+            // Filtro por Marcas (Buscamos por el nombre en la tabla unida)
+            if (pref.preferredBrands || pref.excludedBrands) {
+                const prefBrands = pref.preferredBrands ? pref.preferredBrands.split(',').filter(Boolean) : [];
+                const exclBrands = pref.excludedBrands ? pref.excludedBrands.split(',').filter(Boolean) : [];
+                
+                let brandWhere: any = {};
+                
+                if (prefBrands.length > 0 && exclBrands.length > 0) {
+                    brandWhere = {
+                        [Op.and]: [
+                            { name: { [Op.in]: prefBrands } },
+                            { name: { [Op.notIn]: exclBrands } }
+                        ]
+                    };
+                    hasPreferenceFilters = true;
+                } else if (prefBrands.length > 0) {
+                    brandWhere.name = { [Op.in]: prefBrands };
+                    hasPreferenceFilters = true;
+                } else if (exclBrands.length > 0) {
+                    brandWhere.name = { [Op.notIn]: exclBrands };
+                    hasPreferenceFilters = true;
+                }
+
+                if (Object.keys(brandWhere).length > 0) {
+                    includeOptions.push({
+                        model: Brand,
+                        as: 'brand',
+                        where: brandWhere,
+                        required: true // INNER JOIN
+                    });
+                }
+            }
         }
-      }
+
+        // 3. FALLBACK: Si no configuró preferencias, usamos las categorías de sus favoritos
+        if (!hasPreferenceFilters && favoriteIds.length > 0) {
+            const favoriteProducts = await Product.findAll({
+                where: { id: { [Op.in]: favoriteIds } },
+                attributes: ['categoryId'],
+                raw: true
+            });
+            
+            const fallbackCategoryIds = [...new Set(favoriteProducts.map((p: any) => p.categoryId))].filter(Boolean);
+            
+            if (fallbackCategoryIds.length > 0) {
+                whereClause.categoryId = { [Op.in]: fallbackCategoryIds };
+                score = 70;
+                explanationText = 'Recomendado porque agregaste productos similares a favoritos.';
+            } else {
+                continue;
+            }
+        } else if (!hasPreferenceFilters && favoriteIds.length === 0) {
+            // Si no tiene preferencias ni favoritos, pasamos al siguiente usuario
+            continue; 
+        }
+
+        // 4. BUSCAMOS LOS PRODUCTOS
+        const suggestions = await Product.findAll({
+            where: whereClause,
+            include: includeOptions, // <--- ¡AQUÍ ESTÁ LA SOLUCIÓN! Le pasamos el array directamente
+            limit: 15,
+            order: [['createdAt', 'DESC']]
+        });
+
+        if (suggestions.length === 0) continue;
+
+        // 5. GUARDAMOS LAS NUEVAS RECOMENDACIONES
+        for (const prodInstance of suggestions) {
+            const prod: any = prodInstance.toJSON(); // Parseamos la instancia a JSON limpio
+            const currentProductId = prod.id;
+
+            if (!currentProductId) continue;
+
+            try {
+                // Como ya destruimos todo al principio, podemos hacer create directo y ahorrar tiempo
+                await Recommendation.create({
+                    idUser: user.id,
+                    idProduct: currentProductId,
+                    score: score,
+                    explanationText: explanationText,
+                    expirationAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Expiran en 7 días
+                    isActive: true
+                });
+            } catch (error: any) {
+                console.error(`🚨 Error al crear recomendación para User ${user.id} - Prod ${currentProductId}:`, error.message);
+            }
+        }
     }
-  }
+}
 
   async getRecommendationsByUser(userId: number) {
     return await Recommendation.findAll({

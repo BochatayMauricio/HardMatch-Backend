@@ -106,6 +106,5 @@ class UserService {
     await user.update({ password: hashedNewPassword });
   }
 
-  
 }
 export const userService = new UserService();

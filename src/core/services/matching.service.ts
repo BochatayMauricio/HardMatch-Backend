@@ -4,16 +4,25 @@ import { Product, Brand, Category } from '../models/index.js';
 import { UserPreference } from '../models/UserPreference.js';
 import { Notification } from '../models/Notification.js';
 import { ListingAttributes } from '../models/Listing.js';
+import { Favorite } from '../models/Favorite.js';
+
 
 export const processListingMatch = async (newListing: ListingAttributes) => {
     try {
-        console.log(`\n--- 🚀 INICIANDO MOTOR DE MATCHING ---`);
-        console.log(`[Paso 1] Oferta recibida. ID Producto: ${newListing.productId}, Precio: $${newListing.priceTotal}`);
+        console.log(`\n--- 🚀 INICIANDO MOTOR DE NOTIFICACIONES POR FAVORITOS ---`);
+        console.log(`[Paso 1] Oferta recibida. ID Producto: ${newListing.productId}, Precio: $${newListing.priceTotal}, Descuento: ${newListing.percentOff || 0}%`);
+
+        // Si la oferta no tiene descuento (o es muy bajo), no notificamos para no hacer spam.
+        // Podés ajustar este umbral (ej. 5) o sacarlo si querés notificar cualquier actualización.
+        const minimumDiscount = 5; 
+        if (!newListing.percentOff || newListing.percentOff < minimumDiscount) {
+             console.log(`[Aborto] El producto no alcanza el descuento mínimo del ${minimumDiscount}% para notificar.`);
+             return;
+        }
 
         const productInstance = await Product.findByPk(newListing.productId, {
             include: [
-                { model: Brand, as: 'brand', attributes: ['name'] },
-                { model: Category, as: 'category', attributes: ['name'] }
+                { model: Brand, as: 'brand', attributes: ['name'] }
             ]
         });
 
@@ -22,62 +31,50 @@ export const processListingMatch = async (newListing: ListingAttributes) => {
             return;
         }
 
-        // 💡 CORRECCIÓN 1: Convertimos a JSON puro para esquivar el bug de las clases públicas de Sequelize
         const product: any = productInstance.toJSON();
-
-        // 💡 CORRECCIÓN 2: Usamos encadenamiento opcional (?.) y valores por defecto
         const productName = product.name || 'Producto Desconocido';
         const brandName = product.brand?.name || '';
-        const categoryName = product.category?.name?.toLowerCase() || '';
-
-        if (!categoryName) {
-            console.log(`❌ [Fallo] El producto no tiene categoría o falló el JOIN con la tabla Categories.`);
-            return;
-        }
-
-        console.log(`[Paso 2] Producto detectado: "${productName}" | Categoría: "${categoryName}" | Marca: "${brandName}"`);
-
         const price = Number(newListing.priceTotal);
 
-        const interestedUsers = await UserPreference.findAll({
+        console.log(`[Paso 2] Producto detectado: "${productName}" | Marca: "${brandName}"`);
+
+        // 💡 LA NUEVA MAGIA: Buscamos qué usuarios tienen ESTE producto en sus favoritos
+        const usersWithFavorite = await Favorite.findAll({
             where: {
-                newMatchAlert: true,
-                maxPrice: { [Op.gte]: price },
-                selectedCategories: { [Op.like]: `%${categoryName}%` }
-            }
+                idProduct: newListing.productId,
+                isActive: true
+            },
+            attributes: ['idUser'],
+            raw: true // Traemos data plana para mejor performance
         });
 
-        console.log(`[Paso 3] Usuarios que pasan el filtro SQL (Presupuesto >= ${price} y buscan '${categoryName}'): ${interestedUsers.length}`);
+        console.log(`[Paso 3] Usuarios que tienen este producto en Favoritos: ${usersWithFavorite.length}`);
 
-        if (interestedUsers.length === 0) return;
+        if (usersWithFavorite.length === 0) return;
 
-        const usersToNotify = interestedUsers.filter(pref => {
-            const excluded = pref.excludedBrands ? pref.excludedBrands.split(',') : [];
-            const preferred = pref.preferredBrands ? pref.preferredBrands.split(',') : [];
+        // Extraemos solo los IDs
+        const userIds = usersWithFavorite.map((f: any) => f.idUser);
 
-            if (excluded.some(b => b.toLowerCase() === brandName.toLowerCase())) {
-                console.log(`   -> Usuario ${pref.userId} descartado (Marca Excluida)`);
-                return false;
-            }
-            
-            const isPreferred = preferred.some(b => b.toLowerCase() === brandName.toLowerCase());
-            if (pref.openToNewBrands || isPreferred) {
-                console.log(`   -> Usuario ${pref.userId} APROBADO (Marca ok)`);
-                return true;
-            }
-
-            console.log(`   -> Usuario ${pref.userId} descartado (No acepta nuevas marcas)`);
-            return false;
+        // 💡 OPCIONAL (Pero recomendado): Verificar si el usuario quiere recibir alertas. 
+        // Si no querés chequear la tabla UserPreference acá, podés volar esta parte y notificar a todos los de 'userIds'
+        const usersToNotify = await UserPreference.findAll({
+            where: {
+                userId: { [Op.in]: userIds },
+                priceDropAlert: true // Solo notificamos si el usuario no apagó las alertas de bajada de precio
+            },
+            attributes: ['userId'],
+            raw: true
         });
 
-        console.log(`[Paso 4] Usuarios finales a notificar tras filtro de marca: ${usersToNotify.length}`);
+        console.log(`[Paso 4] Usuarios finales a notificar (tienen alertas activadas): ${usersToNotify.length}`);
 
         if (usersToNotify.length === 0) return;
 
-        const notificationsToCreate = usersToNotify.map(pref => ({
+        // Armamos el array de notificaciones
+        const notificationsToCreate = usersToNotify.map((pref: any) => ({
             userId: pref.userId,
-            title: '🔥 ¡Nueva Oferta Encontrada!',
-            explanation: `Encontramos "${productName}" (Marca: ${brandName}) a $${price}. ¡Revisá el catálogo!`,
+            title: `🔥 ¡Oferta en tus Favoritos!`,
+            explanation: `¡Gran noticia! "${productName}" ahora tiene un ${newListing.percentOff}% de descuento y está a $${price}. ¡Aprovechá la oferta!`,
             isRead: false,
             actionUrl: `/producto/${product.id}`
         }));
@@ -87,6 +84,6 @@ export const processListingMatch = async (newListing: ListingAttributes) => {
         console.log(`----------------------------------------\n`);
 
     } catch (error) {
-        console.error('❌ [ERROR FATAL en Matching Engine]:', error);
+        console.error('❌ [ERROR FATAL en Matching/Notificaciones Engine]:', error);
     }
 };
