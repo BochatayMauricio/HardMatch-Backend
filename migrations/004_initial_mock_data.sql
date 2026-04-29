@@ -43,10 +43,10 @@ INSERT INTO brands (id, name, description, isActive, createdAt, updatedAt) VALUE
 -- 3. TIENDAS (Ahora sí, con Banners)
 -- =========================================================
 INSERT INTO stores (id, name, logo, banner, description, location, isActive, createdAt, updatedAt) VALUES
-(1, 'Mercado Libre', 'https://http2.mlstatic.com/frontend-assets/ml-web-navigation/ui-navigation/6.6.73/mercadolibre/logo__large_plus.png', '#FFE600', 'El marketplace más grande de Latinoamérica.', 'Buenos Aires, Argentina', 1, NOW(), NOW()),
-(2, 'Compra Gamer', 'https://compragamer.net/web/images/logo-compragamer.png', 'https://placehold.co/1200x300/111111/00ff00?text=Hardware+Extreme+Gaming', 'Tienda especializada en hardware de alto rendimiento.', 'CABA, Buenos Aires', 1, NOW(), NOW()),
-(3, 'Mexx' , 'https://www.mexx.com.ar/svg/mexx-logo.svg', '#FF6600', 'Más de 30 años de trayectoria ofreciendo tecnología.', 'Caballito, CABA', 1, NOW(), NOW()),
-(4, 'Fravega', 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/Fr%C3%A1vega_logo.svg/1200px-Fr%C3%A1vega_logo.svg.png', 'https://placehold.co/1200x300/0033cc/ffffff?text=Tecnologia+sin+limites', 'E-commerce líder en tecnología y electrodomésticos.', 'Córdoba, Argentina', 1, NOW(), NOW());
+(1, 'Mercado Libre', 'https://upload.wikimedia.org/wikipedia/de/thumb/2/20/MercadoLibre.svg/1280px-MercadoLibre.svg.png', '#FFE600', 'El marketplace más grande de Latinoamérica.', 'Buenos Aires, Argentina', 1, NOW(), NOW()),
+(2, 'Compra Gamer', 'https://compragamer.hiringroom.com/data/accounts/compragamer/microsite/7029aa0bbea8a019bd51645c5e330443.png', 'Tienda especializada en hardware de alto rendimiento.', 'CABA, Buenos Aires', 1, NOW(), NOW()),
+(3, 'Venex' , 'https://http2.mlstatic.com/D_NQ_NP_988842-MLA82794825348_032025-F.jpg', '#FF6600', 'Más de 30 años de trayectoria ofreciendo tecnología.', 'Caballito, CABA', 1, NOW(), NOW()),
+(4, 'Fravega', 'https://images.fravega.com/f300/2a6cb41abc8f227048a32b7b3ec183d8.jpg.webp', 'E-commerce líder en tecnología y electrodomésticos.', 'Córdoba, Argentina', 1, NOW(), NOW());
 -- =========================================================
 -- 4. CARACTERÍSTICAS TÉCNICAS (Masivas y Estandarizadas)
 -- =========================================================
