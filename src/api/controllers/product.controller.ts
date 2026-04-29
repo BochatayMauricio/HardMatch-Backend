@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import * as productService from '../../core/services/product.service.js';
 import { ProductFilters, ScraperSyncParams } from '../../core/interfaces/product.interfaces.js';
-import { ConflictError, NotFoundError, ValidationError } from '../../utils/errors.js';
+import jwt from 'jsonwebtoken'; // Asegurate de tener esto importado
+import { NotFoundError, ValidationError } from '../../utils/errors.js';
 
 export const create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -90,6 +91,63 @@ export const compare = async (req: Request, res: Response, next: NextFunction): 
         } else {
              next(error);
         }
+    }
+};
+
+// --- CONTROLADOR 1: MEJORES DESCUENTOS ---
+export const getTopDiscountsData = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const page = parseInt(req.query.page as string, 10) || 1;
+        const user = (req as any).user; 
+        let limit = 0;
+        if(user){
+            limit = 8;
+        } else
+            limit = 16;
+        const responseData = await productService.getTopDiscounts(page, limit);
+
+        res.status(200).json({ 
+            success: true, 
+            message: 'Mejores descuentos obtenidos',
+            data: responseData 
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// --- CONTROLADOR 2: RECOMENDADOS ---
+export const getRecommendedData = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const page = parseInt(req.query.page as string, 10) || 1;
+        const limit = parseInt(req.query.limit as string, 8) || 8;
+        
+        // El middleware authenticate ya hizo su magia.
+        // Extraemos el ID del usuario (casteamos a 'any' por si Express no tiene tipado 'user')
+        const user = (req as any).user; 
+        const rawUserId = user?.id || user?.userId;
+        const userId = rawUserId ? parseInt(rawUserId, 10) : null; // Ajustá esto según cómo tu middleware guarde el ID
+
+        // Si por alguna razón el middleware dejó pasar la request pero no hay ID
+        if (!userId || isNaN(userId)) {
+            res.status(200).json({ 
+                success: true, 
+                message: 'Usuario no identificado, no hay recomendaciones',
+                data: { data: [], totalItems: 0, totalPages: 0, currentPage: page } 
+            });
+            return;
+        }
+
+        // Llamamos al servicio con la seguridad de que userId existe
+        const responseData = await productService.getRecommended(page, limit, userId);
+
+        res.status(200).json({ 
+            success: true, 
+            message: 'Recomendaciones obtenidas',
+            data: responseData 
+        });
+    } catch (error) {
+        next(error);
     }
 };
 

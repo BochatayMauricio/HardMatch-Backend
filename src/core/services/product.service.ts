@@ -17,12 +17,24 @@ import {
     Category,
     Feature,
     Listing,
+    Recommendation,
     Store,
     ProductFeature,
     Price,
     sequelize
 } from '../models/index.js';
 import { processListingMatch } from './matching.service.js';
+
+const standardIncludes = [
+    { model: Brand, as: 'brand', attributes: ['name'] },
+    { model: Category, as: 'category', attributes: ['name'] },
+    { 
+        model: Feature, 
+        as: 'features', 
+        attributes: ['keyword', 'value'], 
+        through: { attributes: [] } 
+    }
+];
 
 const DEFAULT_BRAND_NAME = 'Sin marca';
 const DEFAULT_CATEGORY_NAME = 'Sin categoría';
@@ -390,6 +402,86 @@ const upsertListing = async (
     };
 };
 
+// --- MÉTODO 1: MEJORES DESCUENTOS ---
+export const getTopDiscounts = async (page: number, limit: number) => {
+    const offset = (page - 1) * limit;
+
+    const result = await Product.findAndCountAll({
+        where: { isActive: true },
+        include: [
+            ...standardIncludes,
+            {
+                model: Listing,
+                as: 'listings',
+                attributes: ['id', 'priceTotal', 'urlAccess', 'percentOff'],
+                where: { 
+                    isActive: true,
+                    percentOff: { [Op.gt]: 0 } // Solo ofertas reales
+                },
+                required: true, // INNER JOIN
+                include: [
+                    { model: Store, as: 'store', attributes: ['id', 'name', 'logo'] }
+                ]
+            }
+        ],
+        order: [
+            [{ model: Listing, as: 'listings' }, 'percentOff', 'DESC']
+        ],
+        limit,
+        offset,
+        distinct: true 
+    });
+
+    return {
+        data: result.rows,
+        totalItems: result.count,
+        totalPages: Math.ceil(result.count / limit),
+        currentPage: page
+    };
+};
+
+// --- MÉTODO 2: RECOMENDADOS PARA EL USUARIO ---
+export const getRecommended = async (page: number, limit: number, userId: number) => {
+    const offset = (page - 1) * limit;
+
+    const result = await Recommendation.findAndCountAll({
+        where: { 
+            idUser: userId, 
+            isActive: true 
+        },
+        include: [
+            {
+                model: Product,
+                as: 'product',
+                where: { isActive: true },
+                include: [
+                    ...standardIncludes,
+                    { 
+                        model: Listing, 
+                        as: 'listings', 
+                        attributes: ['id', 'priceTotal', 'urlAccess', 'percentOff'],
+                        where: { isActive: true },
+                        required: false, // Left join por si no tiene oferta actual
+                        include: [
+                            { model: Store, as: 'store', attributes: ['id', 'name', 'logo'] }
+                        ]
+                    }
+                ]
+            }
+        ],
+        order: [['score', 'DESC']],
+        limit,
+        offset,
+        distinct: true
+    });
+
+    return {
+        data: result.rows.map((rec: any) => rec.product), // Aplanamos el objeto
+        totalItems: result.count,
+        totalPages: Math.ceil(result.count / limit),
+        currentPage: page
+    };
+};
 
 const processProductScrapedDate = async (scrapedProducts: ScrapedProductInput[])=>{
     const result: ScraperSyncResult = {

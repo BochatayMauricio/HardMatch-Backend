@@ -10,7 +10,9 @@ import {
 	syncFromScraperByMercadoLibre,
 	syncFromScraperByCompraGamer,
 	syncFromScraperByVenex,
-	syncFromScraperByFravega
+	syncFromScraperByFravega,
+	getTopDiscountsData,
+	getRecommendedData
 } from '../controllers/product.controller.js';
 import { validateSchema } from '../middlewares/validateData.middleware.js';
 import {
@@ -23,12 +25,14 @@ import { authenticate } from '../middlewares/auth.middleware.js';
 const router = Router();
 
 router.get('/', getAll);
+router.get('/top-discounts', getTopDiscountsData);
+router.get('/recommended', authenticate, getRecommendedData);
 router.post('/compare', validateSchema(compareProductsSchema), compare);
 router.get('/:id', getById);
-
 router.post('/',authenticate, validateSchema(createProductSchema), create);
 router.put('/:id',authenticate, validateSchema(createProductSchema), update);
 router.delete('/:id',authenticate, remove);
+
 
 //scrapers
 router.post('/sync-from-scraper', authenticate, validateSchema(syncScrapedProductsSchema), syncFromScraper);
