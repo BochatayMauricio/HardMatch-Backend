@@ -1,6 +1,6 @@
 -- =============================================================
--- MIGRACIÓN: add_phone_users
--- Fecha: 2026-02-20
+-- MIGRACIÓN: migration
+-- Fecha: 2026-04-27
 -- Descripción: [Describe los cambios aquí]
 -- =============================================================
 
@@ -9,9 +9,7 @@
 
 -- ==================== TUS CAMBIOS AQUÍ ====================
 
--- Ejemplo: Agregar columna
-ALTER TABLE `users` ADD COLUMN `phone` VARCHAR(255) NULL;
-
+ALTER TABLE products ADD COLUMN image_url TEXT NULL;
 
 -- ==================== FIN DE CAMBIOS ====================
 

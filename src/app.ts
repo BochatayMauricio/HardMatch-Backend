@@ -30,7 +30,7 @@ const app: Application = express();
 
 // ==================== MIDDLEWARES ====================
 
-// CORSa
+// CORS
 app.use(
   cors({
     origin: config.server.corsOrigin,

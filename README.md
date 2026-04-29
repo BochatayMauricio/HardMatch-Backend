@@ -46,6 +46,26 @@ Dentro del archivo `src/config/config.ts` se encontrarán:
 - Variables de entorno ya definidas y validadas con Zod
 - Endpoints de los servicios que consumirá el backend (microservicios)
 
+### Job de scraping automático
+
+El backend levanta varias queries del scraper al iniciar el servidor y las programa de forma automática para que se ejecuten a las 03:00 cada 3 días.
+
+Variables disponibles en `.env`:
+
+- `SCRAPER_JOB_ENABLED`: habilita o deshabilita el job.
+- `SCRAPER_JOB_MAX_PAGES`: cantidad máxima de páginas por query.
+- `SCRAPER_JOB_RUN_HOUR`: hora de ejecución diaria en formato 24h. Valor por defecto: `3`.
+- `SCRAPER_JOB_RUN_EVERY_DAYS`: frecuencia en días para repetir la ejecución. Valor por defecto: `3`.
+
+Ejemplo:
+
+```bash
+SCRAPER_JOB_ENABLED=true
+SCRAPER_JOB_MAX_PAGES=1
+SCRAPER_JOB_RUN_HOUR=3
+SCRAPER_JOB_RUN_EVERY_DAYS=3
+```
+
 ---
 
 ## Comandos Disponibles

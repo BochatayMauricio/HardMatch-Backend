@@ -15,15 +15,15 @@ export interface StoreAttributes {
 }
 
 export class Store extends Model<StoreAttributes> implements StoreAttributes {
-  public id!: number;
-  public name!: string;
-  public logo!: string;
-  public banner!: string;
-  public description!: string;
-  public location!: string;
-  public isActive!: boolean;
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare id: number;
+  declare name: string;
+  declare logo: string;
+  declare banner: string;
+  declare description: string;
+  declare location: string;
+  declare isActive: boolean;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 }
 
 Store.init(

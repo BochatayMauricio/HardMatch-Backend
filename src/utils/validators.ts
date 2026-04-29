@@ -176,6 +176,12 @@ export const compareProductsSchema = z.object({
   .max(3, "Puedes comparar un máximo de 3 productos a la vez")
 });
 
+export const syncScrapedProductsSchema = z.object({
+  queries: z.array(z.string().min(2, "Debes enviar un término de búsqueda").max(120)).min(1, "Debes enviar al menos un término de búsqueda"),
+  maxPages: z.number().int().min(1).max(10).optional(),
+  includeDetailsMl: z.boolean().optional()
+});
+
 // En tu archivo de esquemas (ej. dtoSchemas.users)
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "La contraseña actual es requerida"),

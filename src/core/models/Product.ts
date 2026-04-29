@@ -6,6 +6,7 @@ export interface ProductAttributes {
   id?: number;
   name: string;
   urlAccess?: string;
+  imageUrl?: string;
   price: number;
   brandId: number;
   categoryId: number;
@@ -14,21 +15,23 @@ export interface ProductAttributes {
   updatedAt?: Date;
 }
 
+
 export class Product
   extends Model<ProductAttributes>
   implements ProductAttributes
 {
-  public id!: number;
-  public name!: string;
-  public urlAccess!: string;
-  public price!: number;
-  public brandId!: number;
-  public categoryId!: number;
-  public isActive!: boolean;
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
-}
 
+  declare id: number;
+  declare name: string;
+  declare urlAccess: string;
+  declare imageUrl: string;
+  declare price: number;
+  declare brandId: number;
+  declare categoryId: number;
+  declare isActive: boolean;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
+}
 Product.init(
   {
     id: {
@@ -43,6 +46,11 @@ Product.init(
     urlAccess: {
       type: DataTypes.STRING(500),
       allowNull: true,
+    },
+    imageUrl: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      field: "image_url",
     },
     price: {
       type: DataTypes.DECIMAL(10, 2),
