@@ -39,10 +39,10 @@ class RecommendationController {
     next: NextFunction,
   ): Promise<void> {
     try {
-      if (req.user?.role !== 'ADMIN') {
-        res.status(403).json({ success: false, message: "No autorizado" });
-        return;
-      }
+      // if (req.user?.role !== 'ADMIN') {
+      //   res.status(403).json({ success: false, message: "No autorizado" });
+      //   return;
+      // }
 
       await recommendationService.generateAutomatedRecommendations();
 

@@ -4,7 +4,7 @@
 -- Descripción: [Describe los cambios aquí]
 -- =============================================================
 
-CREATE TABLE user_preferences (
+CREATE TABLE IF NOT EXISTS user_preferences (
   id INT AUTO_INCREMENT PRIMARY KEY,
   userId INT NOT NULL UNIQUE,
   

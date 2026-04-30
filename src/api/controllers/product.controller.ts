@@ -19,20 +19,41 @@ export const create = async (req: Request, res: Response, next: NextFunction): P
 
 export const getAll = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const filters: ProductFilters = {
+        const page = parseInt(req.query.page as string, 10) || 1;
+        const limit = parseInt(req.query.limit as string, 10) || 12;
+
+        console.log('\n--- 🔍 NUEVA BÚSQUEDA ---');
+        console.log('Query Params crudos:', req.query);
+
+        const filters: any = {
             search: req.query.search as string | undefined,
-            minPrice: req.query.minPrice ? Number(req.query.minPrice) : undefined,
-            maxPrice: req.query.maxPrice ? Number(req.query.maxPrice) : undefined,
-            brandId: req.query.brandId ? Number(req.query.brandId) : undefined,
-            categoryId: req.query.categoryId ? Number(req.query.categoryId) : undefined,
+            minPrice: req.query.minPrice !== undefined && req.query.minPrice !== '' ? Number(req.query.minPrice) : undefined,
+            maxPrice: req.query.maxPrice !== undefined && req.query.maxPrice !== '' ? Number(req.query.maxPrice) : undefined,
+            brandName: req.query.brandName as string | undefined,
+            sortBy: req.query.sortBy as string | undefined
         };
 
-        const products = await productService.listProducts(filters);
-        
+        if (req.query.categoryNames) {
+            filters.categoryNames = (req.query.categoryNames as string).split(',');
+        }
+
+        const responseData = await productService.listProducts(filters, page, limit);
+
+        const uniqueBrands = Array.from(
+            new Set(
+                responseData.data
+                    .map((p: any) => p.brand?.name)
+                    .filter((name: any) => name != null)
+            )
+        ).sort();
+
         res.status(200).json({ 
             success: true, 
-            count: products.length, 
-            data: products 
+            message: 'Productos obtenidos con éxito', 
+            data: {
+                ...responseData,
+                brands: uniqueBrands // <-- Devolvemos las marcas al frontend
+            }
         });
     } catch (error) {
         next(error);
