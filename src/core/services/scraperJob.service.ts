@@ -103,7 +103,7 @@ class ScraperJobService {
       console.log(
         `[ScraperJob] Scheduled "${this.config.query}" for ${this.nextRunAt.toLocaleString()} (every ${this.config.runEveryDays} days at ${String(this.config.runAtHour).padStart(2, '0')}:00)`,
       );
-
+      
       void this.run('startup');
     };
 

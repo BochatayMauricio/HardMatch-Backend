@@ -15,7 +15,7 @@ const startServer = async () => {
     // En desarrollo, puedes usar sync para crear las tablas automáticamente
     // NOTA: En producción, usar migraciones SQL
     if (config.env === "development") {
-      await sequelize.sync({ alter: true }); // Descomentar solo si necesitas sincronizar
+      // await sequelize.sync({ alter: true }); // Descomentar solo si necesitas sincronizar
       console.log("📦 Models loaded successfully");
     }
 

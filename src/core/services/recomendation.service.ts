@@ -120,7 +120,6 @@ export class RecommendationService {
         const suggestions = await Product.findAll({
             where: whereClause,
             include: includeOptions, // <--- ¡AQUÍ ESTÁ LA SOLUCIÓN! Le pasamos el array directamente
-            limit: 15,
             order: [['createdAt', 'DESC']]
         });
 

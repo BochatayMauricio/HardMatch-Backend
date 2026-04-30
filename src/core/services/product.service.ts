@@ -595,9 +595,8 @@ const processProductScrapedDate = async (scrapedProducts: ScrapedProductInput[])
                     itemCounters.createdProducts += 1;
                 }
 
-                const features = Array.isArray(scrapedProduct.features)
-                    ? scrapedProduct.features
-                    : [];
+                const rawFeatures = scrapedProduct.features || (scrapedProduct as any).caracteristicas;
+                const features = Array.isArray(rawFeatures) ? rawFeatures : [];
 
                 const featurePreview = features
                     .slice(0, 3)
@@ -690,56 +689,82 @@ export const addProduct = async (data: Omit<ProductAttributes, 'id'>) => {
     return newProduct;
 };
 
-export const listProducts = async (filters: ProductFilters = {}) => {
+export const listProducts = async (filters: any = {}, page: number = 1, limit: number = 12) => {
+    const offset = (page - 1) * limit;
     const whereClause: any = { isActive: true };
 
+    // 1. Filtro base por nombre
     if (filters.search) {
         whereClause.name = { [Op.like]: `%${filters.search}%` }; 
     }
 
-    if (filters.minPrice || filters.maxPrice) {
+    // 2. Filtro de precio directo sobre Product.price (¡Que ya tiene el descuento!)
+    if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
         whereClause.price = {};
-        if (filters.minPrice) whereClause.price[Op.gte] = filters.minPrice;
-        if (filters.maxPrice) whereClause.price[Op.lte] = filters.maxPrice;
+        if (filters.minPrice !== undefined) whereClause.price[Op.gte] = Number(filters.minPrice);
+        if (filters.maxPrice !== undefined) whereClause.price[Op.lte] = Number(filters.maxPrice);
     }
 
-    if (filters.brandId) {
-        whereClause.brandId = filters.brandId;
-    }
-    if (filters.categoryId) {
-        whereClause.categoryId = filters.categoryId;
+    const includeOptions: any[] = [
+        { model: Brand, as: 'brand', attributes: ['name'] },
+        { model: Category, as: 'category', attributes: ['name'] },
+        { model: Feature, as: 'features', attributes: ['keyword', 'value'], through: { attributes: [] } },
+        { 
+            model: Listing, 
+            as: 'listings', 
+            attributes: ['priceTotal', 'urlAccess', 'percentOff'],
+            where: { isActive: true },
+            required: false,
+            include: [{ model: Store, as: 'store', attributes: ['id', 'name', 'logo'] }]
+        }
+    ];
+
+    if (filters.brandName) {
+        includeOptions[0].where = { name: filters.brandName };
+        includeOptions[0].required = true;
     }
 
-    const products = await Product.findAll({
+    if (filters.categoryNames && filters.categoryNames.length > 0) {
+        includeOptions[1].where = { name: { [Op.in]: filters.categoryNames } };
+        includeOptions[1].required = true;
+    }
+
+    // 3. CÁLCULO DEL PRECIO MÁXIMO (Súper rápido)
+    const baseWhereForMax = { ...whereClause };
+    delete baseWhereForMax.price; // Le sacamos el filtro de precio para buscar el tope real
+
+    const highestPriceResult = await Product.findOne({
+        where: baseWhereForMax,
+        include: [ includeOptions[0], includeOptions[1] ],
+        order: [['price', 'DESC']],
+        attributes: ['price']
+    });
+
+    const absoluteMaxPrice = highestPriceResult ? Math.ceil(Number(highestPriceResult.price)) : 1000000;
+
+    // 4. ORDENAMIENTO (Simple y nativo)
+    let orderOption: any = [['createdAt', 'DESC']];
+    if (filters.sortBy === 'price-asc') orderOption = [['price', 'ASC']];
+    if (filters.sortBy === 'price-desc') orderOption = [['price', 'DESC']];
+    if (filters.sortBy === 'name') orderOption = [['name', 'ASC']];
+
+    // 5. BÚSQUEDA PAGINADA FINAL
+    const result = await Product.findAndCountAll({
         where: whereClause,
-        // 💡 Ahora el catálogo principal también recibe TODA la info anidada
-        include: [
-            { model: Brand, as: 'brand', attributes: ['name'] },
-            { model: Category, as: 'category', attributes: ['name'] },
-            { 
-                model: Feature, 
-                as: 'features', 
-                attributes: ['keyword', 'value'], 
-                through: { attributes: [] } 
-            },
-            { 
-                model: Listing, 
-                as: 'listings', 
-                attributes: ['priceTotal', 'urlAccess', 'percentOff'],
-                where: { isActive: true },
-                required: false,
-                // 💡 LA MAGIA DE LA TIENDA:
-                include: [
-                    {
-                        model: Store,
-                        as: 'store',
-                        attributes: ['id', 'name', 'logo']
-                    }
-                ]
-            }
-        ]
-})
-return products
+        include: includeOptions,
+        limit,
+        offset,
+        distinct: true, 
+        order: orderOption
+    });
+
+    return {
+        data: result.rows,
+        totalItems: result.count,
+        totalPages: Math.ceil(result.count / limit),
+        currentPage: page,
+        maxPrice: absoluteMaxPrice
+    };
 };
 
 // 1. Obtener por ID
@@ -810,7 +835,19 @@ export const compareProducts = async (productIds: number[]) => {
             id: productIds,
             isActive: true 
         },
-        include: ['brand', 'category'] 
+        include: [
+            ...standardIncludes,
+            { 
+                model: Listing, 
+                as: 'listings', 
+                attributes: ['id', 'priceTotal', 'urlAccess', 'percentOff'],
+                where: { isActive: true },
+                required: false,
+                include: [
+                    { model: Store, as: 'store', attributes: ['id', 'name', 'logo'] }
+                ]
+            }
+        ] 
     });
 
     // Validamos que se hayan encontrado TODOS los que el usuario pidió
