@@ -40,7 +40,7 @@ INSERT INTO brands (id, name, description, isActive, createdAt, updatedAt) VALUE
 (9, 'Corsair', 'Periféricos y componentes de alto rendimiento', 1, NOW(), NOW());
 
 -- =========================================================
--- 3. TIENDAS (Ahora sí, con Banners)
+-- 3. TIENDAS
 -- =========================================================
 INSERT INTO stores (id, name, logo, banner, description, location, isActive, createdAt, updatedAt) VALUES
 (1, 'Mercado Libre', 'https://upload.wikimedia.org/wikipedia/de/thumb/2/20/MercadoLibre.svg/1280px-MercadoLibre.svg.png', '#FFE600', 'El marketplace más grande de Latinoamérica.', 'Buenos Aires, Argentina', 1, NOW(), NOW()),

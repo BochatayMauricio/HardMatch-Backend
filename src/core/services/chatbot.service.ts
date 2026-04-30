@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { buscarProductosTool, guardarRecomendacionTool, obtenerHistorialTool } from '../tools/chatbot.tools.js';
+import { buscarProductosTool, obtenerHistorialTool } from '../tools/chatbot.tools.js';
 import { Product, Category, Feature, Listing, Recommendation } from '../models/index.js';
 import { Op } from 'sequelize';
 
@@ -78,18 +78,21 @@ export const procesarMensajeChat = async (mensajeUsuario: string, historial: any
         2. LIMITACIÓN DE DATOS: Basa tus recomendaciones EXCLUSIVAMENTE en la información exacta que te devuelven tus herramientas de búsqueda en la base de datos.
         3. MANEJO DE PRECIOS: Si la herramienta no te devuelve un precio o un descuento específico para un producto, NO LO INVENTES. En su lugar, responde: "Actualmente no tengo el precio exacto de este producto a mano".
         4. PRODUCTOS INEXISTENTES: Si el usuario pide algo que no encuentras en la base de datos, simplemente dile que por el momento no contamos con ese tipo de componentes.
-        5. PERSISTENCIA DE DATOS: Tienes acceso a los IDs de los productos a través de las respuestas de las herramientas. Aunque no los menciones explícitamente al usuario, úsalos internamente cuando necesites ejecutar 'guardar_recomendacion'.
 
-        CONOCIMIENTO TÉCNICO PARA EXPLICAR:
-        - RAM DDR5: Explica que es la última generación, más rápida y eficiente que DDR4. Analogía: 'Es una autopista con más carriles'.
-        - SSD NVMe: Explica que es muchísimo más rápido que un disco rígido común.
-        - Nits: Explica que es la potencia del brillo; a más nits, mejor se ve bajo el sol.
+        CONOCIMIENTO TÉCNICO PARA EXPLICAR (Usa estas analogías para convencer y educar al usuario):
+        - RAM (DDR4 vs DDR5): Explica que DDR5 es la última generación, más rápida y eficiente. Analogía: "La memoria RAM es como tu mesa de trabajo; DDR5 es una mesa mucho más grande y ordenada donde puedes hacer las cosas más rápido".
+        - Almacenamiento (SSD NVMe vs HDD): Explica que el SSD es indispensable hoy en día. Analogía: "Un HDD tradicional es como buscar un libro en una biblioteca inmensa caminando. Un SSD NVMe es como tener el libro ya abierto en tu escritorio".
+        - Procesador (Núcleos e Hilos): A más núcleos, mejor multitarea. Analogía: "Los núcleos son los cocineros en un restaurante. Si tienes muchos programas abiertos (o juegos pesados), necesitas más cocineros para que la comida salga rápido".
+        - Placa de Video (VRAM): Explica que la VRAM es vital para la calidad gráfica. Analogía: "La VRAM es como el lienzo de un pintor; si juegas en resoluciones altas como 1440p o 4K, necesitas un lienzo mucho más grande para que quepan todos los detalles".
+        - Monitores (Tasa de Refresco / Hz): Explica que más Hz significa mayor fluidez. Analogía: "60Hz es como ver una película normal, pero 144Hz o más es ver la vida real por una ventana. Es clave para juegos competitivos donde cada milisegundo cuenta".
+        - Monitores (Paneles IPS vs TN): IPS ofrece colores vibrantes y se ve bien desde cualquier ángulo. TN es más rápido para e-sports pero los colores son más apagados.
+        - Pantallas (Nits): Explica que es la potencia del brillo. A más nits, mejor se ve la pantalla bajo la luz directa del sol o en ambientes muy iluminados.
+        - Fuentes de Alimentación (Certificación 80 Plus): Explica que es una garantía de eficiencia. "No te dará más FPS en los juegos, pero protege toda tu inversión evitando problemas de energía y reduciendo el consumo eléctrico".
 
-        Si un usuario te pregunta por qué le recomiendas algo, usa estos datos para convencerlo técnicamente, pero siempre respetando el hardware real.
-        
-        REGLA DE ACCIÓN: Si el usuario confirma que le interesa un producto o pide guardarlo, DEBES ejecutar la función 'guardar_recomendacion' inmediatamente usando el id_producto que recibiste de la herramienta 'buscar_productos'. No solo confirmes con texto, ¡ejecuta la herramienta!`;
+        Si un usuario te pregunta por qué le recomiendas algo, usa estos datos para convencerlo técnicamente, pero SIEMPRE respetando las características del hardware real que te devolvió la base de datos.`;
+
     if (userId) {
-        herramientasDisponibles.push(guardarRecomendacionTool, obtenerHistorialTool);
+        herramientasDisponibles.push(obtenerHistorialTool);
         systemPrompt += "El usuario ESTÁ logueado. Tienes permiso para consultar su historial de recomendaciones previas y guardar nuevas sugerencias.";
     } else {
         systemPrompt += "El usuario NO está logueado. Responde dudas generales, pero no menciones perfiles.";
@@ -148,36 +151,6 @@ export const procesarMensajeChat = async (mensajeUsuario: string, historial: any
                     return textoFinal && textoFinal.trim() !== "" 
                         ? textoFinal 
                         : "He encontrado productos, pero tuve un problema al procesar la respuesta. ¿Puedes intentar preguntarme de nuevo?";
-                }
-                
-                case "guardar_recomendacion": {
-                    // 1. Verificamos que el usuario esté logueado
-                    if (!userId) {
-                        return "Inicia sesión para poder guardar esta recomendación.";
-                    }
-
-                    // 2. Extraemos los argumentos que nos manda Gemini (id del producto y el por qué)
-                    const args = llamada.args as { id_producto: number, motivo: string };
-
-                    // 3. Lo guardamos en MySQL
-                    await Recommendation.create({
-                        idUser: userId,
-                        idProduct: args.id_producto,
-                        score: 95, // Le ponemos un puntaje alto porque el usuario lo eligió
-                        explanationText: args.motivo || "Elegido en el chat con Scrapy.",
-                        expirationAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Expira en 7 días
-                        isActive: true
-                    });
-
-                    // 4. Le avisamos a Gemini que la operación fue un éxito para que siga hablando
-                    const resultadoFinal = await chat.sendMessage([{
-                        functionResponse: {
-                            name: 'guardar_recomendacion',
-                            response: { success: true, message: "Guardado en MySQL exitosamente." }
-                        }
-                    }]);
-
-                    return resultadoFinal.response.text();
                 }
 
                 case "obtener_historial": {
