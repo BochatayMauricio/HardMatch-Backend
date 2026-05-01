@@ -1,8 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import * as productService from '../../core/services/product.service.js';
+import { Store } from '../../core/models/Store.js';
 import { ProductFilters, ScraperSyncParams } from '../../core/interfaces/product.interfaces.js';
-import jwt from 'jsonwebtoken'; // Asegurate de tener esto importado
 import { NotFoundError, ValidationError } from '../../utils/errors.js';
+import { Op } from 'sequelize';
 
 export const create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -112,6 +113,29 @@ export const compare = async (req: Request, res: Response, next: NextFunction): 
         } else {
              next(error);
         }
+    }
+};
+
+const setStoreStatus = async (storeNameKeyword: string, status: string) => {
+    try {
+        // Buscamos la tienda que contenga la palabra clave (ej: 'MercadoLibre' -> LIKE '%mercado%')
+        const store = await Store.findOne({
+            where: {
+                name: {
+                    [Op.like]: `%${storeNameKeyword}%`
+                }
+            }
+        });
+        
+        if (store) {
+            store.status = status;
+            if (status === 'Online') {
+                store.lastSync = new Date();
+            }
+            await store.save();
+        }
+    } catch (error) {
+        console.error(`Error actualizando estado de la tienda ${storeNameKeyword}:`, error);
     }
 };
 
@@ -240,6 +264,8 @@ export const syncFromScraperByMercadoLibre = async (
             message: 'Sincronización de MercadoLibre iniciada en segundo plano. Esto demorará unos minutos.'
         });
 
+        await setStoreStatus('mercado', 'Procesando');
+
         // 2. Ejecutamos el scraping en segundo plano usando una IIFE (Immediately Invoked Function Expression)
         (async () => {
             console.log(`[ScraperBackground] Iniciando lote de ${queries.length} queries...`);
@@ -257,6 +283,8 @@ export const syncFromScraperByMercadoLibre = async (
                 }
             }
             console.log(`[ScraperBackground] Lote completo finalizado.`);
+
+            await setStoreStatus('mercado', 'Online');
         })();
 
     } catch (error) {

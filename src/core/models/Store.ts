@@ -10,6 +10,8 @@ export interface StoreAttributes {
   description?: string;
   location?: string;
   isActive?: boolean;
+  status?: string;    
+  lastSync?: Date;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -22,6 +24,8 @@ export class Store extends Model<StoreAttributes> implements StoreAttributes {
   declare description: string;
   declare location: string;
   declare isActive: boolean;
+  declare status: string;
+  declare lastSync: Date;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 }
@@ -56,6 +60,14 @@ Store.init(
     isActive: {
       type: DataTypes.BOOLEAN,
       defaultValue: true,
+    },
+    status: {
+      type: DataTypes.STRING(50),
+      defaultValue: 'Online', // Por defecto arranca online
+    },
+    lastSync: {
+      type: DataTypes.DATE,
+      allowNull: true,
     },
   },
   {
