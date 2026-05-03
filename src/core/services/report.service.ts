@@ -344,7 +344,7 @@ class ReportService {
         totalClicks,
         avgVariation: 0,
         priceDrop: true, 
-        status
+        status: store.status
       };
     });
 

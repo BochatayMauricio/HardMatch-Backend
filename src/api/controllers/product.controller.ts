@@ -313,21 +313,44 @@ export const syncFromScraperByCompraGamer = async (
 
         // Ejecutamos el scraping en segundo plano
         (async () => {
-            console.log(`[ScraperBackground] Iniciando lote de ${queries.length} queries en CompraGamer...`);
-            
-            for (const query of queries) {
-                try {
-                    const payload: ScraperSyncParams = { query, maxPages };
-                    console.log(`[ScraperBackground] Procesando en CG: "${query}"`);
-                    
-                    await productService.syncProductsFromScraperByCompraGamer(payload);
-                    
-                    console.log(`[ScraperBackground] ✅ Finalizado CG: "${query}"`);
-                } catch (error) {
-                    console.error(`[ScraperBackground] ❌ Error procesando CG "${query}":`, error);
+            try {
+                // 💡 1. Ponemos la tienda en "Procesando..."
+                await Store.update(
+                    { status: 'Procesando...' }, 
+                    { where: { name: { [Op.like]: '%Compra Gamer%' } } }
+                );
+
+                console.log(`[ScraperBackground] Iniciando lote de ${queries.length} queries en CompraGamer...`);
+                
+                for (const query of queries) {
+                    try {
+                        const payload = { query, maxPages };
+                        console.log(`[ScraperBackground] Procesando en CG: "${query}"`);
+                        
+                        await productService.syncProductsFromScraperByCompraGamer(payload);
+                        
+                        console.log(`[ScraperBackground] ✅ Finalizado CG: "${query}"`);
+                    } catch (error) {
+                        console.error(`[ScraperBackground] ❌ Error procesando CG "${query}":`, error);
+                    }
                 }
+                
+                console.log(`[ScraperBackground] Lote de CompraGamer finalizado.`);
+                
+                // 💡 2. Terminó todo bien, pasamos a "Online" y guardamos la fecha
+                await Store.update(
+                    { status: 'Online', lastSync: new Date() }, 
+                    { where: { name: { [Op.like]: '%Compra Gamer%' } } }
+                );
+
+            } catch (fatalError) {
+                console.error('[ScraperBackground] ❌ Error fatal en lote CG:', fatalError);
+                // 💡 3. Si falla todo el proceso, lo marcamos como Error
+                await Store.update(
+                    { status: 'Error' }, 
+                    { where: { name: { [Op.like]: '%Compra Gamer%' } } }
+                );
             }
-            console.log(`[ScraperBackground] Lote de CompraGamer finalizado.`);
         })();
 
     } catch (error) {
@@ -350,29 +373,50 @@ export const syncFromScraperByVenex = async (
             throw new ValidationError('El arreglo de queries es requerido y no puede estar vacío');
         }
 
-        // 1. Respondemos INMEDIATAMENTE al frontend (Fire-and-Forget)
         res.status(202).json({
             success: true,
             message: 'Sincronización de Venex iniciada en segundo plano. Esto demorará unos minutos.'
         });
 
-        // 2. Ejecutamos el scraping en segundo plano
         (async () => {
-            console.log(`[ScraperBackground] Iniciando lote de ${queries.length} queries en Venex...`);
-            
-            for (const query of queries) {
-                try {
-                    const payload: ScraperSyncParams = { query, maxPages };
-                    console.log(`[ScraperBackground] Procesando en Venex: "${query}"`);
-                    
-                    await productService.syncProductsFromScraperByVenex(payload);
-                    
-                    console.log(`[ScraperBackground] ✅ Finalizado Venex: "${query}"`);
-                } catch (error) {
-                    console.error(`[ScraperBackground] ❌ Error procesando Venex "${query}":`, error);
+            try {
+                // 💡 1. Actualizamos estado a Procesando
+                await Store.update(
+                    { status: 'Procesando...' }, 
+                    { where: { name: { [Op.like]: '%Venex%' } } }
+                );
+
+                console.log(`[ScraperBackground] Iniciando lote de ${queries.length} queries en Venex...`);
+                
+                for (const query of queries) {
+                    try {
+                        const payload = { query, maxPages };
+                        console.log(`[ScraperBackground] Procesando en Venex: "${query}"`);
+                        
+                        await productService.syncProductsFromScraperByVenex(payload);
+                        
+                        console.log(`[ScraperBackground] ✅ Finalizado Venex: "${query}"`);
+                    } catch (error) {
+                        console.error(`[ScraperBackground] ❌ Error procesando Venex "${query}":`, error);
+                    }
                 }
+                
+                console.log(`[ScraperBackground] Lote de Venex finalizado.`);
+                
+                // 💡 2. Pasamos a Online
+                await Store.update(
+                    { status: 'Online', lastSync: new Date() }, 
+                    { where: { name: { [Op.like]: '%Venex%' } } }
+                );
+
+            } catch (fatalError) {
+                console.error('[ScraperBackground] ❌ Error fatal en lote Venex:', fatalError);
+                // 💡 3. Pasamos a Error
+                await Store.update(
+                    { status: 'Error' }, 
+                    { where: { name: { [Op.like]: '%Venex%' } } }
+                );
             }
-            console.log(`[ScraperBackground] Lote de Venex finalizado.`);
         })();
 
     } catch (error) {
@@ -393,29 +437,50 @@ export const syncFromScraperByFravega = async (
             throw new ValidationError('El arreglo de queries es requerido y no puede estar vacío');
         }
 
-        // 1. Respondemos INMEDIATAMENTE al frontend (Fire-and-Forget)
         res.status(202).json({
             success: true,
             message: 'Sincronización de Fravega iniciada en segundo plano. Esto demorará unos minutos.'
         });
 
-        // 2. Ejecutamos el scraping en segundo plano
         (async () => {
-            console.log(`[ScraperBackground] Iniciando lote de ${queries.length} queries en Fravega...`);
-            
-            for (const query of queries) {
-                try {
-                    const payload: ScraperSyncParams = { query, maxPages };
-                    console.log(`[ScraperBackground] Procesando en Fravega: "${query}"`);
-                    
-                    await productService.syncProductsFromScraperByFravega(payload);
-                    
-                    console.log(`[ScraperBackground] ✅ Finalizado Fravega: "${query}"`);
-                } catch (error) {
-                    console.error(`[ScraperBackground] ❌ Error procesando Fravega "${query}":`, error);
+            try {
+                // 💡 1. Actualizamos estado a Procesando
+                await Store.update(
+                    { status: 'Procesando...' }, 
+                    { where: { name: { [Op.like]: '%Fravega%' } } }
+                );
+
+                console.log(`[ScraperBackground] Iniciando lote de ${queries.length} queries en Fravega...`);
+                
+                for (const query of queries) {
+                    try {
+                        const payload = { query, maxPages };
+                        console.log(`[ScraperBackground] Procesando en Fravega: "${query}"`);
+                        
+                        await productService.syncProductsFromScraperByFravega(payload);
+                        
+                        console.log(`[ScraperBackground] ✅ Finalizado Fravega: "${query}"`);
+                    } catch (error) {
+                        console.error(`[ScraperBackground] ❌ Error procesando Fravega "${query}":`, error);
+                    }
                 }
+                
+                console.log(`[ScraperBackground] Lote de Fravega finalizado.`);
+                
+                // 💡 2. Pasamos a Online
+                await Store.update(
+                    { status: 'Online', lastSync: new Date() }, 
+                    { where: { name: { [Op.like]: '%Fravega%' } } }
+                );
+
+            } catch (fatalError) {
+                console.error('[ScraperBackground] ❌ Error fatal en lote Fravega:', fatalError);
+                // 💡 3. Pasamos a Error
+                await Store.update(
+                    { status: 'Error' }, 
+                    { where: { name: { [Op.like]: '%Fravega%' } } }
+                );
             }
-            console.log(`[ScraperBackground] Lote de Fravega finalizado.`);
         })();
 
     } catch (error) {
