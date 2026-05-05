@@ -208,7 +208,6 @@ export const syncFromScraper = async (
 
         // Validación inicial
         if (!queries || !Array.isArray(queries) || queries.length === 0) {
-            // Asumo que tenés importado ValidationError igual que en los otros controladores
             throw new ValidationError('El arreglo de queries es requerido y no puede estar vacío');
         }
 
