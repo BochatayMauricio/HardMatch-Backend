@@ -39,7 +39,7 @@ const standardIncludes = [
 const DEFAULT_BRAND_NAME = 'Sin marca';
 const DEFAULT_CATEGORY_NAME = 'Sin categoría';
 const DEFAULT_STORE_NAME = 'Tienda desconocida';
-const SCRAPER_TIMEOUT_MS = 300000;
+const SCRAPER_TIMEOUT_MS = 0;
 
 const normalizeText = (value?: string | null): string => {
     return (value ?? '').trim().replace(/\s+/g, ' ');
@@ -114,7 +114,8 @@ const fetchScrapedProducts = async (params: ScraperSyncParams): Promise<ScrapedP
 
     const requestParams: Record<string, unknown> = {
         q: query,
-        max_pages: params.maxPages ?? 1
+        max_pages: params.maxPages ?? 1,
+        max_items: 15
     };
 
     if (params.includeDetailsMl !== undefined) {

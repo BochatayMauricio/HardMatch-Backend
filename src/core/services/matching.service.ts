@@ -1,10 +1,11 @@
 // src/core/services/matching.service.ts
 import { Op } from 'sequelize';
-import { Product, Brand, Category } from '../models/index.js';
+import { Product, Brand, Category, User } from '../models/index.js'; // 💡 AGREGAMOS User
 import { UserPreference } from '../models/UserPreference.js';
 import { Notification } from '../models/Notification.js';
 import { ListingAttributes } from '../models/Listing.js';
 import { Favorite } from '../models/Favorite.js';
+import { sendPriceDropEmail } from '../../utils/mailer.js'; // 💡 AGREGAMOS nuestro utilitario de emails
 
 
 export const processListingMatch = async (newListing: ListingAttributes) => {
@@ -12,8 +13,6 @@ export const processListingMatch = async (newListing: ListingAttributes) => {
         console.log(`\n--- 🚀 INICIANDO MOTOR DE NOTIFICACIONES POR FAVORITOS ---`);
         console.log(`[Paso 1] Oferta recibida. ID Producto: ${newListing.productId}, Precio: $${newListing.priceTotal}, Descuento: ${newListing.percentOff || 0}%`);
 
-        // Si la oferta no tiene descuento (o es muy bajo), no notificamos para no hacer spam.
-        // Podés ajustar este umbral (ej. 5) o sacarlo si querés notificar cualquier actualización.
         const minimumDiscount = 5; 
         if (!newListing.percentOff || newListing.percentOff < minimumDiscount) {
              console.log(`[Aborto] El producto no alcanza el descuento mínimo del ${minimumDiscount}% para notificar.`);
@@ -38,29 +37,25 @@ export const processListingMatch = async (newListing: ListingAttributes) => {
 
         console.log(`[Paso 2] Producto detectado: "${productName}" | Marca: "${brandName}"`);
 
-        // 💡 LA NUEVA MAGIA: Buscamos qué usuarios tienen ESTE producto en sus favoritos
         const usersWithFavorite = await Favorite.findAll({
             where: {
                 idProduct: newListing.productId,
                 isActive: true
             },
             attributes: ['idUser'],
-            raw: true // Traemos data plana para mejor performance
+            raw: true
         });
 
         console.log(`[Paso 3] Usuarios que tienen este producto en Favoritos: ${usersWithFavorite.length}`);
 
         if (usersWithFavorite.length === 0) return;
 
-        // Extraemos solo los IDs
         const userIds = usersWithFavorite.map((f: any) => f.idUser);
 
-        // 💡 OPCIONAL (Pero recomendado): Verificar si el usuario quiere recibir alertas. 
-        // Si no querés chequear la tabla UserPreference acá, podés volar esta parte y notificar a todos los de 'userIds'
         const usersToNotify = await UserPreference.findAll({
             where: {
                 userId: { [Op.in]: userIds },
-                priceDropAlert: true // Solo notificamos si el usuario no apagó las alertas de bajada de precio
+                priceDropAlert: true
             },
             attributes: ['userId'],
             raw: true
@@ -70,7 +65,7 @@ export const processListingMatch = async (newListing: ListingAttributes) => {
 
         if (usersToNotify.length === 0) return;
 
-        // Armamos el array de notificaciones
+        // Armamos el array de notificaciones para la campanita web
         const notificationsToCreate = usersToNotify.map((pref: any) => ({
             userId: pref.userId,
             title: `🔥 ¡Oferta en tus Favoritos!`,
@@ -81,6 +76,31 @@ export const processListingMatch = async (newListing: ListingAttributes) => {
 
         await Notification.bulkCreate(notificationsToCreate);
         console.log(`✅ [ÉXITO] Se crearon ${notificationsToCreate.length} notificaciones en la BD.`);
+        
+        // ---------------------------------------------------------
+        // 💡 PASO 5: ENVÍO MASIVO DE CORREOS
+        // ---------------------------------------------------------
+        const finalUserIds = usersToNotify.map((pref: any) => pref.userId);
+        
+        // Buscamos los emails reales de esos usuarios en la BD
+        const usersEmails = await User.findAll({
+            where: { id: { [Op.in]: finalUserIds } },
+            attributes: ['email'],
+            raw: true
+        });
+
+        console.log(`[Paso 5] Despachando correos a ${usersEmails.length} casillas...`);
+
+        // Url del frontend (podés cambiar el localhost por tu dominio después)
+        const absoluteProductUrl = `http://localhost:4200/producto/${product.id}`;
+
+        // Enviamos los correos de forma asíncrona para no frenar la ejecución
+        usersEmails.forEach((u: any) => {
+            if (u.email) {
+                sendPriceDropEmail(u.email, productName, price, absoluteProductUrl);
+            }
+        });
+        
         console.log(`----------------------------------------\n`);
 
     } catch (error) {

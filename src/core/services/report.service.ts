@@ -287,6 +287,10 @@ class ReportService {
     const stores = await Store.findAll({ raw: true });
     const validStores = stores.filter(s => s !== null && s !== undefined);
 
+    // 💡 1. Calculamos la fecha de ayer por fuera del bucle para no repetirlo
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
     const statusPromises = validStores.map(async (store: any) => {
       const currentStoreId = store.id; 
 
@@ -299,7 +303,6 @@ class ReportService {
         where: { storeId: currentStoreId, isActive: true } 
       });
 
-      // --- EL CAMBIO ESTÁ ACÁ ---
       // 2A. Obtenemos solo los IDs de los listings que pertenecen a esta tienda
       const storeListings = await Listing.findAll({
         where: { storeId: currentStoreId },
@@ -314,13 +317,46 @@ class ReportService {
       if (listingIds.length > 0) {
         totalClicks = await ListingClick.count({
           where: {
-            listingId: { // ⚠️ ATENCIÓN: Si tu columna se llama de otra forma (ej. idListing), cambialo acá
+            listingId: { 
               [Op.in]: listingIds
             }
           }
         });
       }
-      // ---------------------------
+
+      // --- 💡 NUEVO: CÁLCULO DE VARIACIÓN DE CATÁLOGO ---
+      const newProducts = await Listing.count({
+          where: { 
+              storeId: currentStoreId, 
+              createdAt: { [Op.gte]: yesterday } 
+          }
+      });
+
+      const deactivatedProducts = await Listing.count({
+          where: { 
+              storeId: currentStoreId, 
+              isActive: false,
+              updatedAt: { [Op.gte]: yesterday } 
+          }
+      });
+
+      let growthPercentage = 0;
+      let isNegative = false;
+      const netChange = newProducts - deactivatedProducts;
+
+      if (productCount > 0) {
+          const yesterdayTotal = productCount - netChange; 
+          if (yesterdayTotal > 0) {
+              growthPercentage = Math.round((Math.abs(netChange) / yesterdayTotal) * 100);
+          } else if (netChange > 0) {
+              growthPercentage = 100;
+          }
+      }
+
+      if (netChange < 0) {
+          isNegative = true;
+      }
+      // --------------------------------------------------
 
       const lastProduct = await Listing.findOne({
         where: { storeId: currentStoreId },
@@ -328,6 +364,7 @@ class ReportService {
         raw: true
       });
 
+      // Cálculo de estado artificial (fallback)
       let status = 'OK';
       if (!lastProduct || productCount === 0) status = 'ERROR';
       else {
@@ -342,15 +379,18 @@ class ReportService {
         lastUpdate: lastProduct ? lastProduct.updatedAt : new Date(),
         productCount,
         totalClicks,
-        avgVariation: 0,
-        priceDrop: true, 
-        status
+        // 💡 3. Reemplazamos los valores hardcodeados por las variables calculadas
+        avgVariation: growthPercentage,
+        priceDrop: isNegative, 
+        
+        // Priorizamos el estado de la base de datos (Ej: 'Procesando...') y si no hay, usamos el calculado
+        status: store.status || status
       };
     });
 
     const results = await Promise.all(statusPromises);
     return results.filter(r => r !== null);
-  }
+}
 }
 
 export const reportService = new ReportService();
