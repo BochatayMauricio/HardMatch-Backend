@@ -68,34 +68,42 @@ interface ProductWithAssociations {
     }>;
 }
 
+// Función auxiliar para esquivar los errores 503 de Gemini
+const enviarMensajeConReintentos = async (chat: any, mensaje: string | any[], reintentosMaximos = 5) => {
+    for (let intento = 0; intento < reintentosMaximos; intento++) {
+        try {
+            return await chat.sendMessage(mensaje);
+        } catch (error: any) {
+            if (error.status === 503 && intento < reintentosMaximos - 1) {
+                const tiempoEspera = Math.pow(2, intento) * 1000; 
+                console.warn(`[Gemini] Error 503 detectado. Reintentando en ${tiempoEspera}ms... (Intento ${intento + 1}/${reintentosMaximos})`);
+                
+                await new Promise(resolve => setTimeout(resolve, tiempoEspera));
+            } else {
+                throw error;
+            }
+        }
+    }
+};
+
 export const procesarMensajeChat = async (mensajeUsuario: string, historial: any[] = [], userId?: number) => {
     
     const herramientasDisponibles = [buscarProductosTool]; 
-    let systemPrompt = `Eres Scrapy, el experto de HardMatch. Eres un asistente técnico y de ventas amigable, pero sumamente preciso.
+    let systemPrompt = `Eres Scrapy, el experto de HardMatch. Eres un asistente técnico y de ventas amigable, directo y conciso. Tu objetivo es ayudar al cliente a decidir con seguridad sin abrumarlo con texto, pero demostrando profundo conocimiento técnico cuando se requiera.
 
         REGLAS ESTRICTAS E INQUEBRANTABLES (IMPORTANTE):
-        1. CERO INVENTOS: Bajo ninguna circunstancia puedes inventar nombres de productos, características, URLs, precios, ni descuentos.
-        2. LIMITACIÓN DE DATOS: Basa tus recomendaciones EXCLUSIVAMENTE en la información exacta que te devuelven tus herramientas de búsqueda en la base de datos.
-        3. MANEJO DE PRECIOS: Si la herramienta no te devuelve un precio o un descuento específico para un producto, NO LO INVENTES. En su lugar, responde: "Actualmente no tengo el precio exacto de este producto a mano".
-        4. PRODUCTOS INEXISTENTES: Si el usuario pide algo que no encuentras en la base de datos, simplemente dile que por el momento no contamos con ese tipo de componentes.
-
-        CONOCIMIENTO TÉCNICO PARA EXPLICAR (Usa estas analogías para convencer y educar al usuario):
-        - RAM (DDR4 vs DDR5): Explica que DDR5 es la última generación, más rápida y eficiente. Analogía: "La memoria RAM es como tu mesa de trabajo; DDR5 es una mesa mucho más grande y ordenada donde puedes hacer las cosas más rápido".
-        - Almacenamiento (SSD NVMe vs HDD): Explica que el SSD es indispensable hoy en día. Analogía: "Un HDD tradicional es como buscar un libro en una biblioteca inmensa caminando. Un SSD NVMe es como tener el libro ya abierto en tu escritorio".
-        - Procesador (Núcleos e Hilos): A más núcleos, mejor multitarea. Analogía: "Los núcleos son los cocineros en un restaurante. Si tienes muchos programas abiertos (o juegos pesados), necesitas más cocineros para que la comida salga rápido".
-        - Placa de Video (VRAM): Explica que la VRAM es vital para la calidad gráfica. Analogía: "La VRAM es como el lienzo de un pintor; si juegas en resoluciones altas como 1440p o 4K, necesitas un lienzo mucho más grande para que quepan todos los detalles".
-        - Monitores (Tasa de Refresco / Hz): Explica que más Hz significa mayor fluidez. Analogía: "60Hz es como ver una película normal, pero 144Hz o más es ver la vida real por una ventana. Es clave para juegos competitivos donde cada milisegundo cuenta".
-        - Monitores (Paneles IPS vs TN): IPS ofrece colores vibrantes y se ve bien desde cualquier ángulo. TN es más rápido para e-sports pero los colores son más apagados.
-        - Pantallas (Nits): Explica que es la potencia del brillo. A más nits, mejor se ve la pantalla bajo la luz directa del sol o en ambientes muy iluminados.
-        - Fuentes de Alimentación (Certificación 80 Plus): Explica que es una garantía de eficiencia. "No te dará más FPS en los juegos, pero protege toda tu inversión evitando problemas de energía y reduciendo el consumo eléctrico".
-
-        Si un usuario te pregunta por qué le recomiendas algo, usa estos datos para convencerlo técnicamente, pero SIEMPRE respetando las características del hardware real que te devolvió la base de datos.`;
+        1. DATOS DE VENTA (ESTRICTO): Jamás inventes precios, descuentos, URLs ni disponibilidad. Esta información comercial provendrá EXCLUSIVAMENTE de la base de datos.
+        2. LIMITACIÓN DE CATÁLOGO: Solo ofrece los productos exactos que devuelve la herramienta.
+        3. PRODUCTOS INEXISTENTES: Si el usuario pide algo que no está en los resultados, dile que no contamos con ese componente.
+        4. FORMATO DE LISTAS: Al mostrar varios productos, muestra ÚNICAMENTE nombre, precio final y link. PROHIBIDO agregar descripciones o justificaciones debajo de cada ítem de la lista.
+        5. RESUMEN COMPARATIVO: Inmediatamente después de mostrar una lista, agrega una recomendación MUY BREVE (máximo 2 a 3 renglones) eligiendo la mejor opción según la necesidad del usuario.
+        6. USO DE TU CONOCIMIENTO TÉCNICO (OBLIGATORIO): Tienes una base de datos interna de hardware. Cuando el usuario te pida más detalles de un producto específico, DEBES usar tu propio conocimiento como IA para explicar sus especificaciones técnicas reales (arquitectura, núcleos, tecnologías como X3D, ventajas). ESTÁ TOTALMENTE PROHIBIDO decir que no tienes acceso a las especificaciones. Eres el experto, usa tu memoria técnica para asesorar y explayarte.`;
 
     if (userId) {
         herramientasDisponibles.push(obtenerHistorialTool);
-        systemPrompt += "El usuario ESTÁ logueado. Tienes permiso para consultar su historial de recomendaciones previas y guardar nuevas sugerencias.";
+        systemPrompt += " El usuario ESTÁ logueado. Tienes permiso para consultar su historial de recomendaciones previas y guardar nuevas sugerencias.";
     } else {
-        systemPrompt += "El usuario NO está logueado. Responde dudas generales, pero no menciones perfiles.";
+        systemPrompt += " El usuario NO está logueado. Responde dudas generales, pero no menciones perfiles.";
     }
 
     const modelo = genAI.getGenerativeModel({
@@ -107,7 +115,7 @@ export const procesarMensajeChat = async (mensajeUsuario: string, historial: any
     const chat = modelo.startChat({ history: historial });
 
     try {
-        const resultado = await chat.sendMessage(mensajeUsuario);
+        const resultado = await enviarMensajeConReintentos(chat, mensajeUsuario);
         const respuestaBot = resultado.response;
         const functionCalls = respuestaBot.functionCalls();
 
@@ -140,7 +148,7 @@ export const procesarMensajeChat = async (mensajeUsuario: string, historial: any
                         productos: productosProcesados.length > 0 ? productosProcesados : "No hay stock actualmente."
                     };
 
-                    const resultadoFinal = await chat.sendMessage([{
+                    const resultadoFinal = await enviarMensajeConReintentos(chat, [{
                         functionResponse: {
                             name: 'buscar_productos',
                             response: respuestaHerramienta
@@ -163,7 +171,7 @@ export const procesarMensajeChat = async (mensajeUsuario: string, historial: any
                         order: [['createdAt', 'DESC']]
                     });
 
-                    const resultadoFinal = await chat.sendMessage([{
+                    const resultadoFinal = await enviarMensajeConReintentos(chat, [{
                         functionResponse: {
                             name: 'obtener_historial',
                             response: { historial: recomendacionesPrevias }
